@@ -2,6 +2,7 @@
 from db import Database, Status, ReportRepository, GeneralRepository, UserRepository, IncidentRepository
 from typing import Any, Dict, List, Optional
 from core.report_message import ReportMessage
+import datetime
 
 
 # ✅ - Grep the location ID or add it if it doesn't exist yet to the db (with loc)
@@ -155,9 +156,15 @@ class AggregatorHelper:
         score = 0.0
 
         # Calculate average delay time by reports to give smaller weight to outliers
-        total_delay = sum(r["delay_minutes"] for r in reports if r["delay_minutes"] is not None)
-        avg_delay = total_delay / len(reports)
+        total_delay = 0
+        for r in reports:
+            if r["delay_minutes"] is not None:
+                date = r["created_at"] + datetime.timedelta(minutes=r["delay_minutes"])
+                total_delay += int(date.timestamp())
 
+        avg_delay = total_delay / len(reports) if total_delay > 0 else 0
+
+        weights = []
         for r in reports:
 
             weight = 1.0  # base weight
@@ -171,13 +178,23 @@ class AggregatorHelper:
             
             if r["delay_minutes"] is not None:
                 # Delay time weight (reports close to avg_delay are more trustworthy)
-                delay_diff = abs(r["delay_minutes"] - avg_delay)
-                weight *= max(0.5, 1.0 - (delay_diff / (avg_delay + 1)))  # avoid division by zero
+                date = r["created_at"] + datetime.timedelta(minutes=r["delay_minutes"])
+                delay_diff = abs(int(date.timestamp()) - avg_delay)
+                if avg_delay > 0:
+                    weight *= max(0.5, 1.0 - (delay_diff / avg_delay))  # reduce weight for outliers
 
-            score += weight
+            weights.append(weight)
 
-        return 1.0
-    
+
+        # Normalize score to be between 0.0 and 1.0
+        max_weight = max(weights) if weights else 1.0
+        for w in weights:
+            score += w / max_weight
+        if len(reports) > 0:
+            score /= len(reports)
+
+        return min(max(score, 0.0), 1.0)
+
     @staticmethod
     def update_incident(ag: Aggregator, incident: Dict[str, Any]) -> None:
 
