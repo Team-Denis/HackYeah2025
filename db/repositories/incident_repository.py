@@ -2,6 +2,7 @@
 from ..db import Database, Status
 from typing import Any, Dict, List, Optional, Tuple
 import sqlite3
+import datetime
 
 
 class IncidentRepository:
@@ -60,6 +61,32 @@ class IncidentRepository:
                 "last_updated": row[7]
             }
         return None
+    
+    def get_incident_since(self, since: str) -> List[Dict[str, Any]]:
+        """Retrieve incidents updated since a given timestamp."""
+        cur: sqlite3.Cursor = self.db.execute(
+            query="""
+                SELECT id, location_id, type_id, avg_delay, trust_score, status, created_at, last_updated
+                FROM incidents WHERE last_updated >= ?
+                ORDER BY last_updated DESC
+            """,
+            params=(since,),
+            commit=False
+        )
+        rows = cur.fetchall()
+        return [
+            {
+                "id": row[0],
+                "location_id": row[1],
+                "type_id": row[2],
+                "avg_delay": row[3],
+                "trust_score": row[4],
+                "status": row[5],
+                "created_at": row[6],
+                "last_updated": row[7]
+            }
+            for row in rows
+        ]
 
     def delete_incident(self, incident_id: int) -> None:
         """Delete an incident by ID."""
@@ -234,3 +261,15 @@ class IncidentRepository:
             params=(new_status.value, incident_id),
             commit=True
         )
+    
+    def update_status_for_old_incidents(self):
+        """Set Status to 'RESOLVED' if last_updated is older than created_at + avg_delay + 5 minutes."""
+        self.db.execute(
+           query="""
+               UPDATE incidents
+               SET status = 'RESOLVED'
+               WHERE last_updated < created_at + INTERVAL avg_delay + 5 MINUTE
+           """,
+           commit=True
+       )
+        
