@@ -7,17 +7,6 @@ from dataclasses import dataclass, field
 @dataclass
 class Table:
 
-    USER: str = field(default="""
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT NOT NULL UNIQUE,
-            email TEXT UNIQUE,
-            trust_score REAL DEFAULT 1.0,
-            reports_made INTEGER DEFAULT 0,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-    """)
-
     REPORT_TYPE: str = field(default="""
         CREATE TABLE IF NOT EXISTS report_types (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -29,9 +18,33 @@ class Table:
         CREATE TABLE IF NOT EXISTS locations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
-            line_id TEXT,
             coords_lat REAL,
             coords_lon REAL
+        );
+    """)
+
+    USER: str = field(default="""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL UNIQUE,
+            email TEXT UNIQUE,
+            trust_score REAL DEFAULT 1.0,
+            reports_made INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
+
+    REPORT: str = field(default="""
+        CREATE TABLE IF NOT EXISTS reports (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            location_id INTEGER NOT NULL,
+            type_id INTEGER NOT NULL,
+            delay_minutes INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (location_id) REFERENCES locations(id) ON DELETE CASCADE,
+            FOREIGN KEY (type_id) REFERENCES report_types(id)
         );
     """)
 
@@ -50,28 +63,37 @@ class Table:
         );
     """)
 
-    REPORT: str = field(default="""
-        CREATE TABLE IF NOT EXISTS reports (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            incident_id INTEGER,
-            location_id INTEGER NOT NULL,
-            type_id INTEGER NOT NULL,
-            delay_minutes INTEGER,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-            FOREIGN KEY (incident_id) REFERENCES incidents(id) ON DELETE SET NULL,
-            FOREIGN KEY (location_id) REFERENCES locations(id) ON DELETE CASCADE,
-            FOREIGN KEY (type_id) REFERENCES report_types(id)
-        );
-    """)
-
-    def list(self) -> List[str]:
-        return [value for key, value in self.__dict__.items() \
-                if not key.startswith('_')]
+    @staticmethod
+    def list() -> List[str]:
+        return [value for _, value in Table.__dict__.items() \
+                if isinstance(value, str)]
     
 
+@dataclass
+class ReportType:
+
+    DELAY: str = "Delay"
+    ACCIDENT: str = "Accident"
+    MAINTENANCE: str = "Maintenance"
+    CLOSURE: str = "Closure"
+    OTHER: str = "Other"
+
+    @staticmethod
+    def list() -> List[str]:
+        return [value for _, value in ReportType.__dict__.items() \
+                if isinstance(value, str)]
+
+
 class Database:
+
+    _INDEXES: List[str] = [
+        "CREATE INDEX IF NOT EXISTS idx_reports_location ON reports(location_id);",
+        "CREATE INDEX IF NOT EXISTS idx_reports_type ON reports(type_id);",
+        "CREATE INDEX IF NOT EXISTS idx_reports_created_at ON reports(created_at);",
+        "CREATE INDEX IF NOT EXISTS idx_incidents_location ON incidents(location_id);",
+        "CREATE INDEX IF NOT EXISTS idx_incidents_type ON incidents(type_id);",
+        "CREATE INDEX IF NOT EXISTS idx_incidents_last_updated ON incidents(last_updated);"
+    ]
 
     def __init__(self, fp: str) -> None:
 
@@ -81,27 +103,61 @@ class Database:
         self.cursor: sqlite3.Cursor = self.conn.cursor()
         self.cursor.execute("PRAGMA foreign_keys = ON;")
 
+        self._init_tables()
+        self._create_indexes()
 
-    def init_tables(self) -> None:
+    def _init_tables(self) -> None:
 
         """Initialize all tables in the database."""
 
-        for t in Table().list():
-            self.cursor.execute(t)
+        for t in Table.list():
+            self.execute(t, commit=False)
         self.conn.commit()
+
+    def _create_indexes(self) -> None:
+
+        """Create necessary indexes for performance optimization."""
+
+        for idx in self._INDEXES:
+            self.execute(idx, commit=False)
+        self.conn.commit()
+
+    def fill_types(self) -> None:
+
+        """Fill the report_types table with defined types."""
+
+        for t in ReportType.list():
+            try:
+                self.execute(
+                    query="INSERT INTO report_types (name) VALUES (?)",
+                    params=(t,),
+                    commit=False
+                )
+            except sqlite3.IntegrityError as e:
+                print(f'Type "{t}" already exists. Skipping... ({e}).')
+        self.conn.commit()
+
+    def fill_locations(self) -> None:
+        
+        print('[WARNING] Location seeding not implemented yet.')
+        ... # TODO: Implement location seeding
 
     def close(self) -> None:
         """Close the database connection."""
         self.conn.close()
 
-    def execute(self, query: str, params: Tuple = ()) -> sqlite3.Cursor:
+    def execute(self, query: str, params: Tuple = (), commit: bool = True) -> sqlite3.Cursor:
 
         """
         Execute a query with optional parameters. Returns the cursor. \n
-        Raises SQLite exceptions on error.
+        ## Commit changes to the database manually if commit is set
+        ## to False! \n
+        Raises `sqlite3.Error` exceptions on error.
         """
 
         cur = self.conn.cursor()
         cur.execute(query, params)
-        self.conn.commit()
+        if commit:
+            self.conn.commit()
         return cur
+

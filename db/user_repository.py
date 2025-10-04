@@ -62,13 +62,13 @@ class UserRepository:
         )
         self.db.conn.commit()
 
-    def increment_reports_made(self, uid: int) -> None:
+    def update_reports_made(self, uid: int, count: int) -> None:
 
-        """Increment the reports_made count for a user."""
+        """Update the number of reports made by a user."""
 
         self.db.execute(
-            "UPDATE users SET reports_made = reports_made + 1 WHERE id = ?",
-            (uid,)
+            "UPDATE users SET reports_made = ? WHERE id = ?",
+            (count, uid)
         )
         self.db.conn.commit()
 
