@@ -1,6 +1,6 @@
 
-from db import Database, ReportRepository, GeneralRepository, UserRepository, IncidentRepository
-from typing import Any, Dict, Optional
+from db import Database, Status, ReportRepository, GeneralRepository, UserRepository, IncidentRepository
+from typing import Any, Dict, List, Optional
 from core.report_message import ReportMessage
 
 
@@ -14,17 +14,21 @@ from core.report_message import ReportMessage
 # No (no active incident found with this loc)
 # ✅ - Add a new incident with this report as the first report
 # ✅ - Copy the report data to the incident data
-# - Decide it's trust value
+# ✅ - Decide it's trust value
 # ✅ - Set the incident as active
 
 # Yes (active incident found with this loc)
-# - Add the report to the incident's report list
-# - Update the incident data USING a module with a strategy
-# - Update the incident's last updated timestamp
-# - If the incident was inactive, set it as active again
-# - If the incident is resolved (report type resolved), close it.
+# ✅ - Add the report to the incident's report list
+# ✅ - Update the incident data USING a module with a strategy
+# ✅ - Update the incident's last updated timestamp
+# ✅ - If the incident was inactive, set it as active again
+# ✅ - If the incident is resolved (report type resolved), close it.
 
 class Aggregator:
+
+    """
+    Aggregates user reports into incidents and manages database interactions.
+    """
     
     def __init__(self, db: Database) -> None:
 
@@ -85,23 +89,87 @@ class Aggregator:
         """Increment the report count for a user by 1."""
         self.user_repo.update_reports_made(user["id"], (user["reports_made"] + 1))
 
-    def _update_trust_score(self, user: Dict[str, Any]) -> None:
-        """Update the trust score of a user based on their report history."""
-        pass  # TODO: Implement trust score logic
-
     def _no_incident_subroutine(self, mids: Dict[str, int], r: ReportMessage) -> None:
 
         """Push the incident in the DB."""
 
-        _: int = self.incident_repo.add_incident(
+        iid: int = self.incident_repo.add_incident(
             location_id=mids["lid"],
             type_id=mids["tid"],
             avg_delay=r.delay_minutes,
-            trust_score=r.trust_score,
+            trust_score=0.0,  # will be updated right after
             status='active'
         )
+
+        # add the report to the incident's report list
+        self.report_repo.assign_to_incident(mids["rid"], iid)
+
+        # update the incident's trust score
+        incident: Optional[Dict[str, Any]] = self.incident_repo.get_incident(iid)
+        self._update_trust_score(incident)
 
     def _incident_subroutine(self, mids: Dict[str, int], r: ReportMessage, incident: Dict[str, Any]) -> None:
         
         """Aggregate the report in the existing incident."""
-        pass  # TODO: Implement incident aggregation subroutine
+
+        # add the report to the incident's report list and update the incident's data
+        self.report_repo.assign_to_incident(mids["rid"], incident["id"])
+        self._update_trust_score(incident)
+
+        # update the incident's data
+        AggregatorHelper.update_incident(self, incident)
+
+    def _update_trust_score(self, incident: Dict[str, Any]) -> None:
+
+        """Update the trust score of an incident based on its reports."""
+
+        trust_score: float = AggregatorHelper.calculate_trust_score(self, incident)
+        self.incident_repo.update_trust_score(incident["id"], trust_score)
+
+
+
+# We need to complete these methods (and potentially make others)
+# to re calculate data for incidents, based on all reports related to it.
+# This includes:
+# - Trust score (more records = more trust, users with higher trust score)
+# - Average delay (if applicable)
+# - Incident type (most common report type / highest trust score report type
+# or last report type if it's not resolved and there's no majority)
+# - Status (if the last report is resolved, we can close the incident)
+# - Last updated timestamp (just set it to now)
+# !! Aggregator is done, doesnt need to be modified anymore !!
+
+
+class AggregatorHelper:
+    
+    @staticmethod
+    def calculate_trust_score(ag: Aggregator, incident: Dict[str, Any]) -> int:
+        
+        # get all reports for this incident
+        reports: List[Dict[str, Any]] = ag.report_repo.get_reports_by_incident(
+            incident["id"])
+        assert len(reports) > 0, "[CRITICAL] No reports found for incident"
+    
+        # TODO: Implement trust score calculation logic
+
+        return 1.0
+    
+    @staticmethod
+    def update_incident(ag: Aggregator, incident: Dict[str, Any]) -> None:
+
+        # update trust
+        trust: float = AggregatorHelper.calculate_trust_score(ag, incident)
+        ag.incident_repo.update_trust_score(incident["id"], trust)
+
+        # TODO: update avg delay
+        ...
+
+        # TODO: update incident type
+        ...
+
+        # TODO: update status if needed
+        ...
+
+        # update last update field
+        ag.incident_repo.update_last_updated(incident["id"])
+

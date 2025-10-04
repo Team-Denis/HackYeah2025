@@ -1,5 +1,5 @@
 
-from ..db import Database
+from ..db import Database, Status
 from typing import Any, Dict, List, Optional, Tuple
 import sqlite3
 
@@ -60,34 +60,6 @@ class IncidentRepository:
                 "last_updated": row[7]
             }
         return None
-
-    def update_incident(
-        self,
-        incident_id: int,
-        avg_delay: Optional[float] = None,
-        trust_score: Optional[float] = None,
-        status: Optional[str] = None
-    ) -> None:
-        
-        """Update fields of an incident."""
-
-        updates: List[str] = []
-        params: List[Any] = []
-
-        if avg_delay is not None:
-            updates.append("avg_delay = ?")
-            params.append(avg_delay)
-        if trust_score is not None:
-            updates.append("trust_score = ?")
-            params.append(trust_score)
-        if status is not None:
-            updates.append("status = ?")
-            params.append(status)
-
-        if updates:
-            params.append(incident_id)
-            query = f"UPDATE incidents SET {', '.join(updates)}, last_updated = CURRENT_TIMESTAMP WHERE id = ?"
-            self.db.execute(query=query, params=tuple(params), commit=True)
 
     def delete_incident(self, incident_id: int) -> None:
         """Delete an incident by ID."""
@@ -197,3 +169,68 @@ class IncidentRepository:
                 "last_updated": row[7]
             }
         return None
+
+    def update_trust_score(self, incident_id: int, new_score: float) -> None:
+
+        """Update the trust score of an incident."""
+
+        if 0.0 <= new_score <= 1.0:
+            raise ValueError("[CRITICAL] Trust score must be between 0.0 and 1.0")
+
+        self.db.execute(
+            query="""
+                UPDATE incidents
+                SET trust_score = ?, last_updated = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """,
+            params=(new_score, incident_id),
+            commit=True
+        )
+
+    def update_avg_delay(self, incident_id: int, new_delay: float) -> None:
+
+        """Update the average delay of an incident."""
+
+        if new_delay < 0:
+            raise ValueError("[CRITICAL] Average delay cannot be negative")
+
+        self.db.execute(
+            query="""
+                UPDATE incidents
+                SET avg_delay = ?, last_updated = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """,
+            params=(new_delay, incident_id),
+            commit=True
+        )
+
+    def update_last_updated(self, incident_id: int) -> None:
+
+        """Update the last_updated timestamp of an incident to the current time."""
+
+        self.db.execute(
+            query="""
+                UPDATE incidents
+                SET last_updated = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """,
+            params=(incident_id,),
+            commit=True
+        )
+
+    def update_status(self, incident_id: int, new_status: Status) -> None:
+
+        """Update the status of an incident."""
+
+        if new_status not in Status.list():
+            raise ValueError(f"[CRITICAL] Invalid status: {new_status}")
+
+        self.db.execute(
+            query="""
+                UPDATE incidents
+                SET status = ?, last_updated = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """,
+            params=(new_status.value, incident_id),
+            commit=True
+        )

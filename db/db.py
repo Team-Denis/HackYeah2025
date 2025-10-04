@@ -2,6 +2,7 @@
 import sqlite3
 from typing import List, Tuple
 from dataclasses import dataclass, field, fields
+from enum import Enum
 
 
 @dataclass
@@ -82,6 +83,17 @@ class ReportType:
     @staticmethod
     def list() -> List[str]:
         return [getattr(ReportType, f.name) for f in fields(ReportType)]
+
+
+class Status(Enum):
+
+    ACTIVE: str = "active"
+    RESOLVED: str = "resolved"
+    PENDING: str = "pending"
+
+    @staticmethod
+    def list() -> List[str]:
+        return [status.value for status in Status]
 
 
 class Database:
