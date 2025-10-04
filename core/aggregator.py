@@ -170,29 +170,28 @@ class AggregatorHelper:
         return delay
 
     @staticmethod
-    def _calculate_trust_score(ag: Aggregator, reports: List[report_t]) -> float:
+    def _calculate_trust_score(ag: Aggregator, reports: List[report_t], avg: Optional[float] = None) -> float:
         
         # Calculate a score of trust 
 
         score: float = 0.0
         weights: List[float] = list()
+        normalized_delays: Dict[report_t, int] = AggregatorHelper._calculate_normalized_delays(reports)
 
         for r in reports:
 
             weight: float = 1.0  # base weight is 1.0
-            user: user_t = ag.user_repo.get_user_by_id(r["user_id"])
+            user: user_t = ag.user_repo.get_user_id(r["user_id"])
             weight *= user["trust_score"]
             weight *= (1.0 + (user["reports_made"] / 100.0))
-            
-            if r["delay_minutes"] is not None:
+
+            if normalized_delays[r] is not None and avg is not None:
                 # Delay time weight (reports close to avg_delay are more trustworthy)
-                date = r["created_at"] + datetime.timedelta(minutes=r["delay_minutes"])
-                delay_diff = abs(int(date.timestamp()) - avg_delay)
-                if avg_delay > 0:
-                    weight *= max(0.5, 1.0 - (delay_diff / avg_delay))  # reduce weight for outliers
+                delay_diff: int = abs(int(normalized_delays[r]) - avg)
+                if avg > 0:
+                    weight *= max(0.5, 1.0 - (delay_diff / avg))  # reduce weight for outliers
 
             weights.append(weight)
-
 
         # Normalize score to be between 0.0 and 1.0
         max_weight = max(weights) if weights else 1.0
@@ -211,10 +210,9 @@ class AggregatorHelper:
         assert len(reports) > 0, "[CRITICAL] No reports found for incident"
 
         avg: Optional[float] = AggregatorHelper._calculate_average_time(reports)
-        trust: float = AggregatorHelper._calculate_trust_score(ag, reports)
+        trust: float = AggregatorHelper._calculate_trust_score(ag, reports, avg)
         
-
-        # TODO: status
+        # TODO: status and maybe more idk i dont remember
 
         ag.incident_repo.update_avg_delay(incident['id'], avg)
         ag.incident_repo.update_trust_score(incident['id'], trust)
