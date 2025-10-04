@@ -42,6 +42,20 @@ class UserRepository:
             }
         return None
 
+    def get_user_id(self, username: str) -> Optional[int]:
+
+        """Retrieve a user's ID by username. Returns the ID or None if not found."""
+
+        cur: sqlite3.Cursor = self.db.execute(
+            query="SELECT id FROM users WHERE username = ?",
+            params=(username,),
+            commit=False
+        )
+        row: Any = cur.fetchone()
+        if row:
+            return row[0]
+        return None
+
     def update_trust_score(self, uid: int, score: float) -> None:
 
         """Update the trust score of a user."""
