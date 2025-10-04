@@ -148,3 +148,39 @@ class ReportRepository:
             for r in rows
         ]
 
+    def assign_to_incident(self, report_id: int, incident_id: int) -> None:
+
+        """Link a report to a given incident."""
+
+        self.db.execute(
+            query="UPDATE reports SET incident_id = ? WHERE id = ?",
+            params=(incident_id, report_id),
+            commit=True
+        )
+
+    def get_reports_by_incident(self, incident_id: int) -> List[Dict[str, Any]]:
+        
+        cur = self.db.execute(
+            query="""
+                SELECT id, user_id, location_id, type_id, delay_minutes, created_at
+                FROM reports
+                WHERE incident_id = ?
+                ORDER BY created_at DESC
+            """,
+            params=(incident_id,),
+            commit=False
+        )
+        rows = cur.fetchall()
+        
+        return [
+            {
+                "id": r[0],
+                "user_id": r[1],
+                "location_id": r[2],
+                "type_id": r[3],
+                "delay_minutes": r[4],
+                "created_at": r[5]
+            }
+            for r in rows
+        ]
+

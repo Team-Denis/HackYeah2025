@@ -1,7 +1,7 @@
 
 import sqlite3
 from typing import List, Tuple
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 
 
 @dataclass
@@ -41,10 +41,12 @@ class Table:
             location_id INTEGER NOT NULL,
             type_id INTEGER NOT NULL,
             delay_minutes INTEGER,
+            incident_id INTEGER,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
             FOREIGN KEY (location_id) REFERENCES locations(id) ON DELETE CASCADE,
-            FOREIGN KEY (type_id) REFERENCES report_types(id)
+            FOREIGN KEY (type_id) REFERENCES report_types(id),
+            FOREIGN KEY (incident_id) REFERENCES incidents(id) ON DELETE SET NULL
         );
     """)
 
@@ -65,8 +67,7 @@ class Table:
 
     @staticmethod
     def list() -> List[str]:
-        return [value for _, value in Table.__dict__.items() \
-                if isinstance(value, str)]
+        return [getattr(Table, f.name) for f in fields(Table)]
     
 
 @dataclass
@@ -80,8 +81,7 @@ class ReportType:
 
     @staticmethod
     def list() -> List[str]:
-        return [value for _, value in ReportType.__dict__.items() \
-                if isinstance(value, str)]
+        return [getattr(ReportType, f.name) for f in fields(ReportType)]
 
 
 class Database:
@@ -111,7 +111,7 @@ class Database:
         """Initialize all tables in the database."""
 
         for t in Table.list():
-            self.execute(t, commit=False)
+            self.execute(query=t, commit=False)
         self.conn.commit()
 
     def _create_indexes(self) -> None:

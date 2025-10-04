@@ -7,9 +7,7 @@ import sqlite3
 class UserRepository:
 
     def __init__(self, db: Database) -> None:
-
         """Initialize the UserRepository with a Database instance."""
-
         self.db: Database = db
 
     def add_user(self, username: str, email: str) -> int:
