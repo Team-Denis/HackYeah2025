@@ -1,30 +1,28 @@
 
 import sqlite3
 from typing import List, Tuple
-from dataclasses import dataclass, field, fields
 from enum import Enum
 
 
-@dataclass
-class Table:
+class Table(Enum):
 
-    REPORT_TYPE: str = field(default="""
+    REPORT_TYPE: str = """
         CREATE TABLE IF NOT EXISTS report_types (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL UNIQUE
         );
-    """)
+    """
 
-    LOCATION: str = field(default="""
+    LOCATION: str = """
         CREATE TABLE IF NOT EXISTS locations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
             coords_lat REAL,
             coords_lon REAL
         );
-    """)
+    """
 
-    USER: str = field(default="""
+    USER: str = """
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT NOT NULL UNIQUE,
@@ -33,9 +31,9 @@ class Table:
             reports_made INTEGER DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
-    """)
+    """
 
-    REPORT: str = field(default="""
+    REPORT: str = """
         CREATE TABLE IF NOT EXISTS reports (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
@@ -49,9 +47,9 @@ class Table:
             FOREIGN KEY (type_id) REFERENCES report_types(id),
             FOREIGN KEY (incident_id) REFERENCES incidents(id) ON DELETE SET NULL
         );
-    """)
+    """
 
-    INCIDENT: str = field(default="""
+    INCIDENT: str = """
         CREATE TABLE IF NOT EXISTS incidents (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             location_id INTEGER NOT NULL,
@@ -64,25 +62,24 @@ class Table:
             FOREIGN KEY (location_id) REFERENCES locations(id) ON DELETE CASCADE,
             FOREIGN KEY (type_id) REFERENCES report_types(id)
         );
-    """)
+    """
 
     @staticmethod
     def list() -> List[str]:
-        return [getattr(Table, f.name) for f in fields(Table)]
+        return [table.value for table in Table]
     
 
-@dataclass
-class ReportType:
+class ReportType(Enum):
 
     DELAY: str = "Delay"
-    ACCIDENT: str = "Accident"
     MAINTENANCE: str = "Maintenance"
-    CLOSURE: str = "Closure"
+    ACCIDENT: str = "Accident"
+    SOLVED: str = "Solved"
     OTHER: str = "Other"
 
     @staticmethod
     def list() -> List[str]:
-        return [getattr(ReportType, f.name) for f in fields(ReportType)]
+        return [report.value for report in ReportType]
 
 
 class Status(Enum):
@@ -148,11 +145,6 @@ class Database:
             except sqlite3.IntegrityError as e:
                 print(f'Type "{t}" already exists. Skipping... ({e}).')
         self.conn.commit()
-
-    def fill_locations(self) -> None:
-        
-        print('[WARNING] Location seeding not implemented yet.')
-        ... # TODO: Implement location seeding
 
     def close(self) -> None:
         """Close the database connection."""

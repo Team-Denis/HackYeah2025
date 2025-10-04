@@ -3,7 +3,7 @@
 from typing import List
 from .aggregator import Aggregator, AggregatorHelper
 from .decider import Decider, Thresholds
-from .eventqueue_handler import EventQueueHandler
+from .eventqueue_handler import EventHandler
 from .report_message import ReportMessage
 
 __all__: List[str] = [
@@ -11,7 +11,7 @@ __all__: List[str] = [
     "AggregatorHelper",
     "Decider",
     "Thresholds",
-    "EventQueueHandler",
+    "EventHandler",
     "ReportMessage"
 ]
 

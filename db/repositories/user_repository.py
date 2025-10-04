@@ -26,7 +26,7 @@ class UserRepository:
         """Retrieve a user by ID. Returns a dictionary or None if not found."""
 
         cur: sqlite3.Cursor = self.db.execute(
-            query="SELECT id, username, email, trust_score, created_at FROM users WHERE id = ?",
+            query="SELECT id, username, email, trust_score, reports_made, created_at FROM users WHERE id = ?",
             params=(uid,),
             commit=False
         )

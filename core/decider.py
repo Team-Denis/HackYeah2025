@@ -1,7 +1,7 @@
 
 from db import Database, UserRepository
-from report_message import ReportMessage
-from typing import Dict, Any, Optional
+from .report_message import ReportMessage
+from typing import Dict, Any, Optional, Tuple
 from dataclasses import dataclass
 import math
 
@@ -28,7 +28,7 @@ class Decider:
         self.db: Database = db
         self.user_repo: UserRepository = UserRepository(db)
 
-    def decide(self, message: ReportMessage) -> bool:
+    def decide(self, message: ReportMessage) -> Tuple[bool, float]:
 
         """
         Decides whether to trust a given report message.
@@ -37,7 +37,7 @@ class Decider:
 
         distance: float = self._distance(message)
         time_diff: Optional[float] = message.delay_minutes or 0.0
-        trust_score: float = self._trust(message.user_id)
+        trust_score: float = self._trust(self.user_repo.get_user_id(message.user_name))
 
         if self._instant_reject(distance, time_diff, trust_score):
             return False
@@ -47,7 +47,7 @@ class Decider:
         )
         prob: float = self._sigmoid(score)
 
-        return prob >= Thresholds.DECIDE 
+        return (prob >= Thresholds.DECIDE, prob)
 
     def _distance(self, message: ReportMessage) -> float:
 
@@ -58,8 +58,8 @@ class Decider:
 
         lat1: float = message.user_location[0]
         lon1: float = message.user_location[1]
-        lat2: float = message.reported_location[0]
-        lon2: float = message.reported_location[1]
+        lat2: float = message.location_pos[0]
+        lon2: float = message.location_pos[1]
 
         # map to radians yuh
         lat1, lon1, lat2, lon2 = map(math.radians, [lat1, lon1, lat2, lon2])
@@ -82,7 +82,7 @@ class Decider:
         
         user: Dict[str, Any] = self.user_repo.get_user(user_id)
         trust_score: float = user['trust_score']
-        reports_count: int = user['reports_count']
+        reports_count: int = user['reports_made']
 
         prior: float = self.PRIOR
         prior_weight: float = self.PRIOR_WEIGHT
