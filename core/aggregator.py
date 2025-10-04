@@ -1,7 +1,7 @@
 
-from db import Database, Status, ReportRepository, GeneralRepository, UserRepository, IncidentRepository
+from db import Database, ReportRepository, GeneralRepository, UserRepository, IncidentRepository
 from typing import Any, Dict, List, Optional
-from core.report_message import ReportMessage
+from report_message import ReportMessage
 import datetime
 
 

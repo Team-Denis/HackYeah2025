@@ -1,6 +1,6 @@
 
 from db import Database, UserRepository
-from core.report_message import ReportMessage
+from report_message import ReportMessage
 from typing import Dict, Any, Optional
 from dataclasses import dataclass
 import math
