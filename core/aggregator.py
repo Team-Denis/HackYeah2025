@@ -1,8 +1,15 @@
 
 from db import Database, ReportRepository, GeneralRepository, UserRepository, IncidentRepository
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from .report_message import ReportMessage
 import datetime
+
+
+# alias for reading
+
+report_t = Dict[str, Any]
+incident_t = Dict[str, Any]
+user_t = Dict[str, Any]
 
 
 # ✅ - Grep the location ID or add it if it doesn't exist yet to the db (with loc)
@@ -56,18 +63,18 @@ class Aggregator:
         mids['rid'] = rid
 
         # update the user's report count and trust score
-        user: Dict[str, Any] = self.user_repo.get_user_by_id(mids["uid"])
+        user: user_t = self.user_repo.get_user_by_id(mids["uid"])
         self._update_report_history(user)
         self._update_trust_score(user)
         
         # try to fetch an active incident at this location
         # and run correct subroutine
-        incident: Optional[Dict[str, Any]] = self.incident_repo.get_incident_by_location(mids["lid"])
+        incident: Optional[incident_t] = self.incident_repo.get_incident_by_location(mids["lid"])
 
         if incident: self._incident_subroutine(mids, report, incident)
         else: self._no_incident_subroutine(mids, report)
 
-    def _handle_ids(self, r: ReportMessage) -> Dict[str, Any]:
+    def _handle_ids(self, r: ReportMessage) -> report_t:
         
         tid: Optional[int] = self.general_repo.get_type_id(r.report_type)
         uid: Optional[int] = self.user_repo.get_user_id(r.user_name)
@@ -106,7 +113,7 @@ class Aggregator:
         self.report_repo.assign_to_incident(mids["rid"], iid)
 
         # update the incident's trust score
-        incident: Optional[Dict[str, Any]] = self.incident_repo.get_incident(iid)
+        incident: Optional[incident_t] = self.incident_repo.get_incident(iid)
         self._update_trust_score(incident)
 
     def _incident_subroutine(self, mids: Dict[str, int], r: ReportMessage, incident: Dict[str, Any]) -> None:
@@ -129,20 +136,29 @@ class Aggregator:
 
 
 
-# We need to complete these methods (and potentially make others)
-# to re calculate data for incidents, based on all reports related to it.
-# This includes:
-# - Trust score (more records = more trust, users with higher trust score)
-# - Average delay (if applicable)
-# - Incident type (most common report type / highest trust score report type
-# or last report type if it's not resolved and there's no majority)
-# - Status (if the last report is resolved, we can close the incident)
-# - Last updated timestamp (just set it to now)
-# !! Aggregator is done, doesnt need to be modified anymore !!
-
 
 class AggregatorHelper:
     
+    @staticmethod
+    def _calculate_average_time(reports: List[report_t]) -> \
+        Tuple[Dict[report_t, int], Optional[float]]:
+
+        # first we normalize data by doing the sum of created at + timedelta(now, delay)
+        delay: float = 0.0
+        c: int = 0
+
+        # for each non null wait time
+        for r in reports:
+            if not (r["delay_minutes"] is None):
+                date: datetime.timedelta = r["created_at"] + \
+                    datetime.timedelta(minutes=r["delay_minutes"])
+                # do normal AVG
+                c += 1
+                delay += int(date.timestamp())
+
+        delay /= c if c > 0 else 0
+        return delay if c > 0 else None
+
     @staticmethod
     def calculate_trust_score(ag: Aggregator, incident: Dict[str, Any]) -> int:
         
@@ -151,18 +167,10 @@ class AggregatorHelper:
             incident["id"])
         assert len(reports) > 0, "[CRITICAL] No reports found for incident"
     
-        # TODO: Implement trust score calculation logic
+        # WIP
 
-        score = 0.0
 
-        # Calculate average delay time by reports to give smaller weight to outliers
-        total_delay = 0
-        for r in reports:
-            if r["delay_minutes"] is not None:
-                date = r["created_at"] + datetime.timedelta(minutes=r["delay_minutes"])
-                total_delay += int(date.timestamp())
-
-        avg_delay = total_delay / len(reports) if total_delay > 0 else 0
+        score: float = 0.0
 
         weights = []
         for r in reports:
