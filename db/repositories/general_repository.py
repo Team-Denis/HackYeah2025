@@ -37,7 +37,7 @@ class GeneralRepository:
         """Add a new location to the database. Returns the new location ID."""
         
         cur: sqlite3.Cursor = self.db.execute(
-            query="INSERT INTO locations (name, latitude, longitude) VALUES (?, ?, ?)",
+            query="INSERT INTO locations (name, coords_lat, coords_lon) VALUES (?, ?, ?)",
             params=(location_name, pos[0], pos[1]),
             commit=True
         )
