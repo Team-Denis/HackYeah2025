@@ -171,3 +171,29 @@ class IncidentRepository:
             for r in rows
         ]
 
+    def get_incident_by_location(self, lid: int) -> Optional[Dict[str, Any]]:
+        """Get the most recent active incident by location ID."""
+        cur: sqlite3.Cursor = self.db.execute(
+            query="""
+                SELECT id, location_id, type_id, avg_delay, trust_score, status, created_at, last_updated
+                FROM incidents
+                WHERE location_id = ? AND status = 'active'
+                ORDER BY last_updated DESC
+                LIMIT 1
+            """,
+            params=(lid,),
+            commit=False
+        )
+        row = cur.fetchone()
+        if row:
+            return {
+                "id": row[0],
+                "location_id": row[1],
+                "type_id": row[2],
+                "avg_delay": row[3],
+                "trust_score": row[4],
+                "status": row[5],
+                "created_at": row[6],
+                "last_updated": row[7]
+            }
+        return None
