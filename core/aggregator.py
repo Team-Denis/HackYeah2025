@@ -93,7 +93,7 @@ class Aggregator:
             "lid": lid
         }
 
-    def _update_report_history(self, user: Dict[str, Any]) -> None:
+    def _update_report_history(self, user: user_t) -> None:
         """Increment the report count for a user by 1."""
         self.user_repo.update_reports_made(user["id"], (user["reports_made"] + 1))
 
@@ -116,7 +116,7 @@ class Aggregator:
         incident: Optional[incident_t] = self.incident_repo.get_incident(iid)
         self._update_trust_score(incident)
 
-    def _incident_subroutine(self, mids: Dict[str, int], r: ReportMessage, incident: Dict[str, Any]) -> None:
+    def _incident_subroutine(self, mids: Dict[str, int], r: ReportMessage, incident: incident_t) -> None:
         
         """Aggregate the report in the existing incident."""
 
@@ -127,7 +127,7 @@ class Aggregator:
         # update the incident's data
         AggregatorHelper.update_incident(self, incident)
 
-    def _update_trust_score(self, incident: Dict[str, Any]) -> None:
+    def _update_trust_score(self, incident: incident_t) -> None:
 
         """Update the trust score of an incident based on its reports."""
 
@@ -140,49 +140,49 @@ class Aggregator:
 class AggregatorHelper:
     
     @staticmethod
-    def _calculate_average_time(reports: List[report_t]) -> \
-        Tuple[Dict[report_t, int], Optional[float]]:
+    def _calculate_normalized_delays(reports: List[report_t]) -> Dict[report_t, Optional[int]]:
 
-        # first we normalize data by doing the sum of created at + timedelta(now, delay)
-        delay: float = 0.0
-        c: int = 0
+        """Calculate normalized times relative to the report starting timestamp and now."""
 
-        # for each non null wait time
+        d: Dict[report_t, int] = dict()
+
         for r in reports:
             if not (r["delay_minutes"] is None):
                 date: datetime.timedelta = r["created_at"] + \
                     datetime.timedelta(minutes=r["delay_minutes"])
-                # do normal AVG
-                c += 1
-                delay += int(date.timestamp())
+                d[r] = int(date.timestamp())
+            else: d[r] = None
 
-        delay /= c if c > 0 else 0
-        return delay if c > 0 else None
+        return d
 
     @staticmethod
-    def calculate_trust_score(ag: Aggregator, incident: Dict[str, Any]) -> int:
-        
-        # get all reports for this incident
-        reports: List[Dict[str, Any]] = ag.report_repo.get_reports_by_incident(
-            incident["id"])
-        assert len(reports) > 0, "[CRITICAL] No reports found for incident"
-    
-        # WIP
+    def _calculate_average_time(reports: List[report_t]) -> Optional[float]:
 
+        # first we normalize data by doing the sum of created at + timedelta(now, delay)
+        delay: float = 0.0
+        times: List[int] = AggregatorHelper._calculate_normalized_delays(reports).values()
+
+        # for each non null wait time
+        for t in times:
+            delay += t
+
+        delay /= len(times) if len(times) > 0 else None
+        return delay
+
+    @staticmethod
+    def _calculate_trust_score(ag: Aggregator, reports: List[report_t]) -> float:
+        
+        # Calculate a score of trust 
 
         score: float = 0.0
+        weights: List[float] = list()
 
-        weights = []
         for r in reports:
 
-            weight = 1.0  # base weight
-
-            user: Optional[Dict[str, Any]] = ag.user_repo.get_user_by_id(r["user_id"])
-            if user is None:
-                continue
-            
-            weight *= user["trust_score"]  # user trust score weight
-            weight *= (1.0 + (user["reports_made"] / 100.0))  # user report count weight
+            weight: float = 1.0  # base weight is 1.0
+            user: user_t = ag.user_repo.get_user_by_id(r["user_id"])
+            weight *= user["trust_score"]
+            weight *= (1.0 + (user["reports_made"] / 100.0))
             
             if r["delay_minutes"] is not None:
                 # Delay time weight (reports close to avg_delay are more trustworthy)
@@ -204,21 +204,19 @@ class AggregatorHelper:
         return min(max(score, 0.0), 1.0)
 
     @staticmethod
-    def update_incident(ag: Aggregator, incident: Dict[str, Any]) -> None:
+    def _update_incident(ag: Aggregator, incident: incident_t) -> None:
+        
+        # get all reports for this incident
+        reports: List[Dict[str, Any]] = ag.report_repo.get_reports_by_incident(incident["id"])
+        assert len(reports) > 0, "[CRITICAL] No reports found for incident"
 
-        # update trust
-        trust: float = AggregatorHelper.calculate_trust_score(ag, incident)
-        ag.incident_repo.update_trust_score(incident["id"], trust)
+        avg: Optional[float] = AggregatorHelper._calculate_average_time(reports)
+        trust: float = AggregatorHelper._calculate_trust_score(ag, reports)
+        
 
-        # TODO: update avg delay
-        ...
+        # TODO: status
 
-        # TODO: update incident type
-        ...
-
-        # TODO: update status if needed
-        ...
-
-        # update last update field
-        ag.incident_repo.update_last_updated(incident["id"])
+        ag.incident_repo.update_avg_delay(incident['id'], avg)
+        ag.incident_repo.update_trust_score(incident['id'], trust)
+        ag.incident_repo.update_last_updated(incident['id'])
 
