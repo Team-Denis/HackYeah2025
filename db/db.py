@@ -13,6 +13,7 @@ class Table:
             username TEXT NOT NULL UNIQUE,
             email TEXT UNIQUE,
             trust_score REAL DEFAULT 1.0,
+            reports_made INTEGER DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     """)
