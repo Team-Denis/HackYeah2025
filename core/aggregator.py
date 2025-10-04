@@ -152,6 +152,30 @@ class AggregatorHelper:
     
         # TODO: Implement trust score calculation logic
 
+        score = 0.0
+
+        # Calculate average delay time by reports to give smaller weight to outliers
+        total_delay = sum(r["delay_minutes"] for r in reports if r["delay_minutes"] is not None)
+        avg_delay = total_delay / len(reports)
+
+        for r in reports:
+
+            weight = 1.0  # base weight
+
+            user: Optional[Dict[str, Any]] = ag.user_repo.get_user_by_id(r["user_id"])
+            if user is None:
+                continue
+            
+            weight *= user["trust_score"]  # user trust score weight
+            weight *= (1.0 + (user["reports_made"] / 100.0))  # user report count weight
+            
+            if r["delay_minutes"] is not None:
+                # Delay time weight (reports close to avg_delay are more trustworthy)
+                delay_diff = abs(r["delay_minutes"] - avg_delay)
+                weight *= max(0.5, 1.0 - (delay_diff / (avg_delay + 1)))  # avoid division by zero
+
+            score += weight
+
         return 1.0
     
     @staticmethod
