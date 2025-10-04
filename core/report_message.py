@@ -15,6 +15,7 @@ class ReportMessage:
     location_pos: Tuple[float, float]
     report_type: ReportType
     delay_minutes: Optional[int] = None
+    trust_score: Optional[int] = None
     
     def to_dict(self) -> dict:
         return {
