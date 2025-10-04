@@ -272,4 +272,18 @@ class IncidentRepository:
            """,
            commit=True
        )
-        
+
+    def update_incident_type(self, incident_id: int, nit: int) -> None:
+
+        """Update the type of an incident."""
+
+        self.db.execute(
+            query="""
+                UPDATE incidents
+                SET type_id = ?, last_updated = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """,
+            params=(nit, incident_id),
+            commit=True
+        )
+

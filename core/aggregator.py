@@ -1,5 +1,5 @@
 
-from db import Database, ReportRepository, GeneralRepository, UserRepository, IncidentRepository
+from db import Database, ReportType, ReportRepository, GeneralRepository, UserRepository, IncidentRepository
 from typing import Any, Dict, List, Optional, Tuple
 from .report_message import ReportMessage
 import datetime
@@ -125,7 +125,7 @@ class Aggregator:
         self._update_trust_score(incident)
 
         # update the incident's data
-        AggregatorHelper.update_incident(self, incident)
+        AggregatorHelper._update_incident(self, incident)
 
     def _update_trust_score(self, incident: incident_t) -> None:
 
@@ -203,6 +203,31 @@ class AggregatorHelper:
         return min(max(score, 0.0), 1.0)
 
     @staticmethod
+    def _calculate_type(ag: Aggregator, reports: List[report_t]) -> int:
+
+        """Determine the most common report type among the reports."""
+
+        type_count: Dict[int, int] = dict()
+
+        # sort reports by created_at (datetime) descending
+        reports.sort(key=lambda x: x["created_at"], reverse=True)
+        for r in reports:
+            if r["type_id"] in type_count:
+                type_count[r["type_id"]] += 1
+            else:
+                type_count[r["type_id"]] = 1
+
+        s: int = ag.general_repo.get_type_id(ReportType.SOLVED)
+        
+        # if any is Resolved, then return resolved
+        if s in type_count: return s
+
+        # if no resolved, then the most common type is the incident type
+        # last update is given in case of tie (by sorting)
+        m: int = max(type_count, key=type_count.get)
+        return m
+
+    @staticmethod
     def _update_incident(ag: Aggregator, incident: incident_t) -> None:
         
         # get all reports for this incident
@@ -211,9 +236,11 @@ class AggregatorHelper:
 
         avg: Optional[float] = AggregatorHelper._calculate_average_time(reports)
         trust: float = AggregatorHelper._calculate_trust_score(ag, reports, avg)
-        
+        type_id: int = AggregatorHelper._calculate_type(ag, reports)
+
         # TODO: status and maybe more idk i dont remember
 
+        ag.incident_repo.update_incident_type(incident['id'], type_id)
         ag.incident_repo.update_avg_delay(incident['id'], avg)
         ag.incident_repo.update_trust_score(incident['id'], trust)
         ag.incident_repo.update_last_updated(incident['id'])
