@@ -1,5 +1,5 @@
 
-from .db import Database
+from ..db import Database
 from typing import Any, Dict, Optional, List
 import sqlite3
 
@@ -17,8 +17,9 @@ class UserRepository:
         """Add a new user to the database. Returns the new user's ID."""
 
         cur: sqlite3.Cursor = self.db.execute(
-            "INSERT INTO users (username, email) VALUES (?, ?)",
-            (username, email)
+            query="INSERT INTO users (username, email) VALUES (?, ?)",
+            params=(username, email),
+            commit=True
         )
         return cur.lastrowid
 
@@ -27,8 +28,9 @@ class UserRepository:
         """Retrieve a user by ID. Returns a dictionary or None if not found."""
 
         cur: sqlite3.Cursor = self.db.execute(
-            "SELECT id, username, email, trust_score, created_at FROM users WHERE id = ?",
-            (uid,)
+            query="SELECT id, username, email, trust_score, created_at FROM users WHERE id = ?",
+            params=(uid,),
+            commit=False
         )
         row: Any = cur.fetchone()
         if row:
@@ -47,39 +49,43 @@ class UserRepository:
         """Update the trust score of a user."""
 
         self.db.execute(
-            "UPDATE users SET trust_score = ? WHERE id = ?",
-            (score, uid)
+            query="UPDATE users SET trust_score = ? WHERE id = ?",
+            params=(score, uid),
+            commit=True
         )
-        self.db.conn.commit()
 
     def delete_user(self, uid: int) -> None:
 
         """Delete a user by ID."""
 
         self.db.execute(
-            "DELETE FROM users WHERE id = ?",
-            (uid,)
+            query="DELETE FROM users WHERE id = ?",
+            params=(uid,),
+            commit=True
         )
-        self.db.conn.commit()
 
     def update_reports_made(self, uid: int, count: int) -> None:
 
         """Update the number of reports made by a user."""
-
+        
         self.db.execute(
-            "UPDATE users SET reports_made = ? WHERE id = ?",
-            (count, uid)
+            query="UPDATE users SET reports_made = ? WHERE id = ?",
+            params=(count, uid),
+            commit=True
         )
-        self.db.conn.commit()
 
     def list_users(self) -> List[Dict[str, Any]]:
 
         """List all users in the database."""
 
         cur: sqlite3.Cursor = self.db.execute(
-            "SELECT id, username, email, trust_score, reports_made, created_at FROM users"
+            query="SELECT id, username, email, trust_score, reports_made, created_at FROM users",
+            params=(),
+            commit=False
         )
+
         rows: List[Any] = cur.fetchall()
+
         return [
             {
                 "id": row[0],
