@@ -207,7 +207,7 @@ class IncidentRepository:
         self.db.execute(
             query="""
                 UPDATE incidents
-                SET trust_score = ?, last_updated = CURRENT_TIMESTAMP
+                SET trust_score = ?, last_updated = datetime('now', 'utc')
                 WHERE id = ?
             """,
             params=(new_score, incident_id),
@@ -224,7 +224,7 @@ class IncidentRepository:
         self.db.execute(
             query="""
                 UPDATE incidents
-                SET avg_delay = ?, last_updated = CURRENT_TIMESTAMP
+                SET avg_delay = ?, last_updated = datetime('now', 'utc')
                 WHERE id = ?
             """,
             params=(new_delay, incident_id),
@@ -238,7 +238,7 @@ class IncidentRepository:
         self.db.execute(
             query="""
                 UPDATE incidents
-                SET last_updated = CURRENT_TIMESTAMP
+                SET last_updated = datetime('now', 'utc')
                 WHERE id = ?
             """,
             params=(incident_id,),
@@ -255,7 +255,7 @@ class IncidentRepository:
         self.db.execute(
             query="""
                 UPDATE incidents
-                SET status = ?, last_updated = CURRENT_TIMESTAMP
+                SET status = ?, last_updated = datetime('now', 'utc')
                 WHERE id = ?
             """,
             params=(new_status.value, incident_id),
@@ -280,7 +280,7 @@ class IncidentRepository:
         self.db.execute(
             query="""
                 UPDATE incidents
-                SET type_id = ?, last_updated = CURRENT_TIMESTAMP
+                SET type_id = ?, last_updated = datetime('now', 'utc')
                 WHERE id = ?
             """,
             params=(nit, incident_id),

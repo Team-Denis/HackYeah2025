@@ -29,7 +29,7 @@ class Table(Enum):
             email TEXT UNIQUE,
             trust_score REAL DEFAULT 1.0,
             reports_made INTEGER DEFAULT 0,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            created_at TIMESTAMP DEFAULT (datetime('now', 'utc'))
         );
     """
 
@@ -41,7 +41,7 @@ class Table(Enum):
             type_id INTEGER NOT NULL,
             delay_minutes INTEGER,
             incident_id INTEGER,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            created_at TIMESTAMP DEFAULT (datetime('now', 'utc')),
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
             FOREIGN KEY (location_id) REFERENCES locations(id) ON DELETE CASCADE,
             FOREIGN KEY (type_id) REFERENCES report_types(id),
@@ -56,9 +56,9 @@ class Table(Enum):
             type_id INTEGER NOT NULL,
             avg_delay REAL,
             trust_score REAL DEFAULT 0.0,
-            status TEXT DEFAULT 'active', -- active / resolved / pending
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            status TEXT DEFAULT 'active',
+            created_at TIMESTAMP DEFAULT (datetime('now', 'utc')),
+            last_updated TIMESTAMP DEFAULT (datetime('now', 'utc')),
             FOREIGN KEY (location_id) REFERENCES locations(id) ON DELETE CASCADE,
             FOREIGN KEY (type_id) REFERENCES report_types(id)
         );

@@ -2,7 +2,7 @@
 from db import Database, ReportType, ReportRepository, GeneralRepository, UserRepository, IncidentRepository
 from typing import Any, Dict, List, Optional, Tuple
 from .report_message import ReportMessage
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 
@@ -158,21 +158,16 @@ class AggregatorHelper:
         """
 
         d: Dict[int, Optional[float]] = {}
+        now: datetime.date = datetime.now(timezone.utc)
 
-        tz = ZoneInfo("Europe/Warsaw")  # TODO: add a field TZ to avoid hardcoding (not urgent)
-        now = datetime.now(tz)
 
         for r in reports:
             if r["delay_minutes"] is not None:
                 
-                created_at = datetime.fromisoformat(r["created_at"])
-                if created_at.tzinfo is None:
-                    created_at = created_at.replace(tzinfo=tz)
-                planned = created_at - timedelta(minutes=r["delay_minutes"])
+                created_at: datetime = datetime.fromisoformat(r["created_at"])
+                planned: datetime = created_at + timedelta(minutes=r["delay_minutes"])
+                planned = planned.replace(tzinfo=timezone.utc)
 
-                print(planned)
-                print(now)
-                
                 # difference between planned end and now
                 diff = planned - now
                 remaining_minutes = diff.total_seconds() / 60
@@ -183,7 +178,6 @@ class AggregatorHelper:
 
         print(f"[INFO] Normalized time table: {d}")
         return d
-
 
     @staticmethod
     def _calculate_average_time(reports: List[report_t]) -> Optional[float]:
@@ -263,7 +257,6 @@ class AggregatorHelper:
         # get all reports for this incident
         reports: List[Dict[str, Any]] = ag.report_repo.get_reports_by_incident(incident["id"])
         assert len(reports) > 0, "[CRITICAL] No reports found for incident"
-
         avg: Optional[float] = AggregatorHelper._calculate_average_time(reports)
         trust: float = AggregatorHelper._calculate_trust_score(ag, reports, avg)
         type_id: int = AggregatorHelper._calculate_type(ag, reports)
