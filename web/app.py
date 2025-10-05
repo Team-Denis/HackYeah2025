@@ -8,12 +8,15 @@ from flask import Flask, request, Response
 import json
 import time
 import datetime
-from db import Database, IncidentRepository, GeneralRepository
+from dotenv import load_dotenv
+from db import Database, IncidentRepository, GeneralRepository, ReportRepository
 from google.transit import gtfs_realtime_pb2
 from typing import List, Dict, Any
 
 
 app = Flask(__name__)
+load_dotenv()
+
 
 # Configure Redis connection
 redis_conn = Redis(host=os.getenv("REDIS_HOST"), port=os.getenv("REDIS_PORT"), db=os.getenv("REDIS_DB"))
@@ -111,6 +114,44 @@ def trip_updates() -> None:
         }
     )
     return response
+
+
+# Public API endpoint to get all incidents with enriched location names
+@app.route('/api/incidents', methods=['GET'])
+def get_incidents() -> Response:
+
+    db: Database = Database(os.getenv("DB_PATH"))  # ugly but works for now
+    incident_repo: IncidentRepository = IncidentRepository(db)
+    general_repo: GeneralRepository = GeneralRepository(db)
+    incidents: List[Dict[str, Any]] = incident_repo.list_incidents()
+
+    # Enrich incidents with location names
+    for incident in incidents:
+        location_id = incident.get('location_id')
+        if location_id:
+            location = general_repo.get_location_by_id(location_id)
+            incident['location_name'] = location['name'] if location else 'Unknown'
+        else:
+            incident['location_name'] = 'Unknown'
+
+    return Response(
+        json.dumps(incidents, default=str),  # default=str to handle datetime serialization
+        mimetype='application/json'
+    )
+
+
+# Public API endpoint to get all reports ever made
+@app.route('/api/reports', methods=['GET'])
+def get_reports() -> Response:
+
+    db: Database = Database(os.getenv("DB_PATH"))  # ugly but works for now
+    report_repo: ReportRepository = ReportRepository(db)
+    reports: List[Dict[str, Any]] = report_repo.list_reports()
+
+    return Response(
+        json.dumps(reports, default=str),  # default=str to handle datetime serialization
+        mimetype='application/json'
+    )
 
 if __name__ == "__main__":
     app.run(host=os.getenv("HOST"), port=os.getenv("PORT"), debug=True)

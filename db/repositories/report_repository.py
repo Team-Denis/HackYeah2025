@@ -100,7 +100,7 @@ class ReportRepository:
 
         query += " ORDER BY created_at DESC"
 
-        cur: sqlite3.Cursor = self.db.execute(query, params, commit=False)
+        cur: sqlite3.Cursor = self.db.execute(query, params)
         rows: Any = cur.fetchall()
 
         return [
