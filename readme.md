@@ -29,7 +29,7 @@ pip install -r requirements.txt
 ```
 python web/app.py
 ```
-
+4. Install and Launch `Redis` Service
 ---
 
 ## Endpoints

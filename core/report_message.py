@@ -43,13 +43,13 @@ class ReportMessage:
         return cls(
             user_name=data.get('user_name'),
             user_location=(
-                data.get('user_location').get('latitude'),
-                data.get('user_location').get('longitude')
+                data.get('user_location')[0],
+                data.get('user_location')[1]
             ),
             location_name=data.get('location_name'),
             location_pos=(
-                data.get('location_pos').get('latitude'),
-                data.get('location_pos').get('longitude')
+                data.get('location_pos')[0],
+                data.get('location_pos')[1]
             ),
             report_type=ReportType(data.get('report_type')),
             delay_minutes=data.get('delay_minutes')

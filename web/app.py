@@ -32,6 +32,8 @@ def enqueue_report() -> Response:
     if not data:
         return {"error": "Invalid payload"}, 400
     
+    print(data)
+    
     try:
         redis_conn.rpush('report_queue', json.dumps(data))
     except Exception as e:
@@ -75,7 +77,7 @@ def trip_updates() -> None:
             # Assuming location_name is formatted as "tripid_stopid"
             location_id = incident.get('location_id')
             location = general_repo.get_location_by_id(location_id)
-            trip_id, stop_id = location['name'].split('_')
+            trip_id, stop_id = location['name'].split('@')
 
             print(f"Processing incident {incident['id']} for trip {trip_id} at stop {stop_id}")
 
