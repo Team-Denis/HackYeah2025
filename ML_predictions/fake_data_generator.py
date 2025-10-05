@@ -94,6 +94,8 @@ for _ in range(num_nonzero_delay):
         10: 2.0
     }
     avg_delay = random.gauss(10, 5) * location_multiplier[location_id]
+    if avg_delay < 0:
+        avg_delay = 0.0
 
     trust_score = random.uniform(0.0, 1.0)
     status = random.choice(list(Status.list()))

@@ -12,4 +12,9 @@ class Predictor:
         y_pred = self.model.predict(X)
 
         return y_pred
-            
+        
+    def predict_location(self, location_id):
+        # Make predictions
+        y_pred = self.model.predict([location_id])
+
+        return y_pred, location_id
