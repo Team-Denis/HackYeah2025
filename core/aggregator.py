@@ -2,7 +2,8 @@
 from db import Database, ReportType, ReportRepository, GeneralRepository, UserRepository, IncidentRepository
 from typing import Any, Dict, List, Optional, Tuple
 from .report_message import ReportMessage
-import datetime
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 
 # alias for reading
@@ -62,10 +63,12 @@ class Aggregator:
             delay_minutes=report.delay_minutes)
         mids['rid'] = rid
 
+        print(f'[INFO] Added record: {self.report_repo.get_report(rid)}')
+
         # update the user's report count and trust score
-        user: user_t = self.user_repo.get_user_by_id(mids["uid"])
+        user: user_t = self.user_repo.get_user(mids["uid"])
         self._update_report_history(user)
-        self._update_trust_score(user)
+        self._update_user_trust_score(user)
         
         # try to fetch an active incident at this location
         # and run correct subroutine
@@ -75,6 +78,8 @@ class Aggregator:
         else: self._no_incident_subroutine(mids, report)
 
     def _handle_ids(self, r: ReportMessage) -> report_t:
+
+        """Handle id fetching as well as creating Location records if new."""
         
         tid: Optional[int] = self.general_repo.get_type_id(r.report_type)
         uid: Optional[int] = self.user_repo.get_user_id(r.user_name)
@@ -83,7 +88,9 @@ class Aggregator:
         # No lid is okay, we add it to the DB.
         # No uid or tid is NOT okay, those MUST exist (no custom report types or
         # users that don't exist).
-        if lid is None: lid = self.general_repo.add_location(r.location_name, r.location_pos)
+        if lid is None:
+            lid = self.general_repo.add_location(r.location_name, r.location_pos)
+            print(f'[INFO] New location discovered, adding {lid}.')
         if uid is None: raise ValueError("[CRITICAL] User does not exist")
         if tid is None: raise ValueError("[CRITICAL] Report type does not exist")
 
@@ -96,6 +103,7 @@ class Aggregator:
     def _update_report_history(self, user: user_t) -> None:
         """Increment the report count for a user by 1."""
         self.user_repo.update_reports_made(user["id"], (user["reports_made"] + 1))
+        print(f'[INFO] Updated user report count: {self.user_repo.get_user(user["id"])}')
 
     def _no_incident_subroutine(self, mids: Dict[str, int], r: ReportMessage) -> None:
 
@@ -108,13 +116,15 @@ class Aggregator:
             trust_score=0.0,  # will be updated right after
             status='active'
         )
+        print(f'[INFO] Added incident since report is new info ({self.incident_repo.get_incident(iid)})')
 
         # add the report to the incident's report list
         self.report_repo.assign_to_incident(mids["rid"], iid)
+        print(f'[INFO] Report {mids["rid"]} assigned to incident {iid}')
 
-        # update the incident's trust score
+        # update the incident
         incident: Optional[incident_t] = self.incident_repo.get_incident(iid)
-        self._update_trust_score(incident)
+        AggregatorHelper._update_incident(self, incident)
 
     def _incident_subroutine(self, mids: Dict[str, int], r: ReportMessage, incident: incident_t) -> None:
         
@@ -127,33 +137,53 @@ class Aggregator:
         # update the incident's data
         AggregatorHelper._update_incident(self, incident)
 
-    def _update_trust_score(self, incident: incident_t) -> None:
+    def _update_user_trust_score(self, user: user_t) -> None:
 
-        """Update the trust score of an incident based on its reports."""
+        """Update the trust score of a user based on their report history."""
 
-        trust_score: float = AggregatorHelper.calculate_trust_score(self, incident)
-        self.incident_repo.update_trust_score(incident["id"], trust_score)
-
+        # TODO: do that ig
+        print('[WARN] Skipping updating user score...')
 
 
 
 class AggregatorHelper:
     
     @staticmethod
-    def _calculate_normalized_delays(reports: List[report_t]) -> Dict[report_t, Optional[int]]:
+    def _calculate_normalized_delays(reports: List[dict]) -> Dict[int, Optional[float]]:
+        """
+        Calculate normalized delays for each report relative to the current time.
+        
+        Returns a dict mapping report_id -> remaining delay (in minutes)
+        or None if delay is not provided.
+        """
 
-        """Calculate normalized times relative to the report starting timestamp and now."""
+        d: Dict[int, Optional[float]] = {}
 
-        d: Dict[report_t, int] = dict()
+        tz = ZoneInfo("Europe/Warsaw")  # TODO: add a field TZ to avoid hardcoding (not urgent)
+        now = datetime.now(tz)
 
         for r in reports:
-            if not (r["delay_minutes"] is None):
-                date: datetime.timedelta = r["created_at"] + \
-                    datetime.timedelta(minutes=r["delay_minutes"])
-                d[r] = int(date.timestamp())
-            else: d[r] = None
+            if r["delay_minutes"] is not None:
+                
+                created_at = datetime.fromisoformat(r["created_at"])
+                if created_at.tzinfo is None:
+                    created_at = created_at.replace(tzinfo=tz)
+                planned = created_at - timedelta(minutes=r["delay_minutes"])
 
+                print(planned)
+                print(now)
+                
+                # difference between planned end and now
+                diff = planned - now
+                remaining_minutes = diff.total_seconds() / 60
+
+                d[r["id"]] = round(remaining_minutes, 2)  # keep 2 decimals
+            else:
+                d[r["id"]] = None
+
+        print(f"[INFO] Normalized time table: {d}")
         return d
+
 
     @staticmethod
     def _calculate_average_time(reports: List[report_t]) -> Optional[float]:
