@@ -14,15 +14,16 @@ redis_conn = Redis(host='localhost', port=6379, db=0)
 DB_PATH = os.getenv("DB_PATH", "db/hackyeah.db")
 
 
-# Endpoint to enqueue an event
+# Endpoint to enqueue a report
 @app.route('/enqueue', methods=['POST'])
-def enqueue_event():
+def enqueue_report():
     data = request.json
     if not data:
         return {"error": "Invalid payload"}, 400
     
-    redis_conn.publish('event_queue', str(data))
-    return {"status": "Event enqueued"}, 200
+    redis_conn.publish('report_queue', str(data))
+    return {"status": "Report enqueued"}, 200
+
 
 
 

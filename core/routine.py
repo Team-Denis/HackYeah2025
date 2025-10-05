@@ -5,7 +5,7 @@ from .report_message import ReportMessage
 from .user_elo import UserElo
 from db import Database, UserRepository
 from typing import Tuple
-
+from redis import Redis
 
 class Routine:
 
@@ -19,7 +19,34 @@ class Routine:
         self.elo: UserElo = UserElo(db)
         self.user_repo: UserRepository = UserRepository(db)
 
-    def process_report(self, report: ReportMessage) -> None:
+    def run(self) -> None:
+
+        """Main processing loop for incoming reports."""
+
+        redis_conn = Redis(host='localhost', port=6379, db=0)
+        pubsub = redis_conn.pubsub()
+        pubsub.subscribe("report_queue")
+
+        print("[INFO] Listening for incoming reports...")
+
+        for message in pubsub.listen():
+            report_message = ReportMessage(
+                user_name=message['data'].get('user_name'),
+                user_location=(
+                    message['data'].get('user_latitude'),
+                    message['data'].get('user_longitude')
+                ),
+                location_name=message['data'].get('location_name'),
+                location_id=message['data'].get('location_id'),
+                type_id=message['data'].get('type_id'),
+                delay_minutes=message['data'].get('delay_minutes')
+            )
+
+            self._process_report(report_message)
+
+
+
+    def _process_report(self, report: ReportMessage) -> None:
 
         """Process an incoming report message."""
 
