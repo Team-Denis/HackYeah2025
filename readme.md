@@ -34,9 +34,31 @@ python web/app.py
 
 ## Endpoints
 
+### 1. `/enqueue` [POST]
 
+Submits a user report to the Redis queue for asynchronous processing.
 
-### 1. `/gtfs/trip-updates` [GET]
+**Request JSON:**
+```json
+{
+    "location_id": 101,
+    "type_id": 1,
+    "trust_score": 0.8,
+    "avg_delay": 12.0,
+    "status": "active"
+}
+```
+
+Response JSON:
+
+```
+{
+    "status": "Report enqueued",
+    "queue_size": 3
+}
+```
+
+### 2. `/gtfs/trip-updates` [GET]
 
 Generates a GTFS-Realtime feed for recent incidents.  
 This feed can be consumed by GTFS-compatible clients for real-time trip updates.
@@ -55,7 +77,7 @@ Protobuf `.pb` file downloadable with `Content-Disposition: attachment`.
 
 ---
 
-### 2. `/api/incidents` [GET]
+### 3. `/api/incidents` [GET]
 
 Returns a list of recorded incidents, enriched with location names.
 
@@ -81,7 +103,7 @@ Returns a list of recorded incidents, enriched with location names.
 
 ---
 
-### 3. `/api/reports` [GET]
+### 4. `/api/reports` [GET]
 
 Returns all reports submitted by users.
 
@@ -103,7 +125,56 @@ Returns all reports submitted by users.
   }
 ]
 ```
+### 5. '/api/incidents/<incident_id/reports>' [GET]
+Returns all reports associated with a specific incident.
+# Response Example:
 
+```
+[
+  {
+    "id": 102,
+    "user_id": 124,
+    "location_id": 45,
+    "type_id": 1,
+    "delay_minutes": 10,
+    "incident_id": 1,
+    "created_at": "2025-10-05T12:05:00"
+  }
+]
+```
+
+### 6. '/api/types' [GET]
+Returns all available type mappings ```(type_id → type_name)```.
+
+# Response Example:
+```
+[
+  {
+    "id": 1,
+    "name": "Delay"
+  },
+  {
+    "id": 2,
+    "name": "Accident"
+  }
+]
+```
+
+### 7. '/api/locations' [GET]
+Returns all available location mappings ```(location_id → location_name)```.
+
+# Response Example:
+
+```json
+[
+  {
+    "id": 101,
+    "name": "Trip42_Stop7",
+    "latitude": 52.2297,
+    "longitude": 21.0122
+  }
+]
+```
 ---
 
 ## Architecture
