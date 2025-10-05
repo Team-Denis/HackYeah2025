@@ -25,9 +25,13 @@ if __name__ == "__main__":
         (50.06143, 19.93658), ReportType.DELAY, 10)
     rm2: ReportMessage = ReportMessage('bob', (50, 20), 'Krakow',
         (50.06143, 19.93658), ReportType.DELAY, 20)
+    rm3: ReportMessage = ReportMessage('bob', (60, 20), 'Varsovia',
+        (60, 20), ReportType.ACCIDENT, None)
     
     routine: Routine = Routine(db)
     routine.process_report(rm1)
+    routine.process_report(rm2)
+    routine.process_report(rm3)
     
 
     

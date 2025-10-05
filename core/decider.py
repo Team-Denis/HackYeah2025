@@ -40,7 +40,7 @@ class Decider:
         trust_score: float = self._trust(self.user_repo.get_user_id(message.user_name))
 
         if self._instant_reject(distance, time_diff, trust_score):
-            return False
+            return False, 0.0
 
         score: float = (
             (trust_score * 2.0) - (distance / Thresholds.DISTANCE) - (time_diff / Thresholds.TIME)

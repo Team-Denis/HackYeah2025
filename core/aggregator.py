@@ -132,7 +132,7 @@ class Aggregator:
 
         # add the report to the incident's report list and update the incident's data
         self.report_repo.assign_to_incident(mids["rid"], incident["id"])
-        self._update_trust_score(incident)
+        self._update_user_trust_score(incident)
 
         # update the incident's data
         AggregatorHelper._update_incident(self, incident)
@@ -184,13 +184,16 @@ class AggregatorHelper:
 
         # first we normalize data by doing the sum of created at + timedelta(now, delay)
         delay: float = 0.0
-        times: List[int] = AggregatorHelper._calculate_normalized_delays(reports).values()
+        c: int = 0
+        times: Dict[int, Optional[float]] = AggregatorHelper._calculate_normalized_delays(reports)
 
         # for each non null wait time
-        for t in times:
-            delay += t
+        for _, k in times.items():
+                if k is not None:
+                    delay += k
+                    c += 1
 
-        delay /= len(times) if len(times) > 0 else None
+        delay = delay / c if c > 0 else None
         return delay
 
     @staticmethod
@@ -200,18 +203,19 @@ class AggregatorHelper:
 
         score: float = 0.0
         weights: List[float] = list()
-        normalized_delays: Dict[report_t, int] = AggregatorHelper._calculate_normalized_delays(reports)
+        normalized_delays: Dict[int, Optional[float]] = AggregatorHelper._calculate_normalized_delays(reports)
 
         for r in reports:
 
             weight: float = 1.0  # base weight is 1.0
-            user: user_t = ag.user_repo.get_user_id(r["user_id"])
+            user: user_t = ag.user_repo.get_user(r["user_id"])
+
             weight *= user["trust_score"]
             weight *= (1.0 + (user["reports_made"] / 100.0))
 
-            if normalized_delays[r] is not None and avg is not None:
+            if normalized_delays[r["id"]] is not None and avg is not None:
                 # Delay time weight (reports close to avg_delay are more trustworthy)
-                delay_diff: int = abs(int(normalized_delays[r]) - avg)
+                delay_diff: int = abs(int(normalized_delays[r["id"]]) - avg)
                 if avg > 0:
                     weight *= max(0.5, 1.0 - (delay_diff / avg))  # reduce weight for outliers
 
@@ -261,6 +265,7 @@ class AggregatorHelper:
         trust: float = AggregatorHelper._calculate_trust_score(ag, reports, avg)
         type_id: int = AggregatorHelper._calculate_type(ag, reports)
 
+        print(f'[INFO] Average: {avg}\n[INFO] Trust: {trust}\n[INFO] Type id: {type_id}')
         # TODO: status and maybe more idk i dont remember
 
         ag.incident_repo.update_incident_type(incident['id'], type_id)

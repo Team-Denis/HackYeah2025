@@ -201,8 +201,8 @@ class IncidentRepository:
 
         """Update the trust score of an incident."""
 
-        if 0.0 <= new_score <= 1.0:
-            raise ValueError("[CRITICAL] Trust score must be between 0.0 and 1.0")
+        if 0 > new_score or 1 < new_score:
+            raise ValueError(f"[CRITICAL] Trust score must be between 0.0 and 1.0 (got {new_score})")
 
         self.db.execute(
             query="""
@@ -218,8 +218,9 @@ class IncidentRepository:
 
         """Update the average delay of an incident."""
 
-        if new_delay < 0:
-            raise ValueError("[CRITICAL] Average delay cannot be negative")
+        if new_delay is not None:
+            if new_delay < 0:
+                raise ValueError("[CRITICAL] Average delay cannot be negative")
 
         self.db.execute(
             query="""
