@@ -56,4 +56,37 @@ class GeneralRepository:
             params=(location_name, pos[0], pos[1]),
         )
         return cur.lastrowid
+    
+    def list_locations(self) -> list:
+
+        """List all locations in the database."""
+        
+        cur: sqlite3.Cursor = self.db.execute(
+            query="SELECT id, name, coords_lat, coords_lon FROM locations",
+        )
+        rows: list[Tuple[int, str, float, float]] = cur.fetchall()
+        locations: list[dict] = []
+        for row in rows:
+            locations.append({
+                "id": row[0],
+                "name": row[1],
+                "coords": (row[2], row[3])
+            })
+        return locations
+    
+    def list_types(self) -> list:
+
+        """List all report types in the database."""
+        
+        cur: sqlite3.Cursor = self.db.execute(
+            query="SELECT id, name FROM report_types",
+        )
+        rows: list[Tuple[int, str]] = cur.fetchall()
+        types: list[dict] = []
+        for row in rows:
+            types.append({
+                "id": row[0],
+                "name": row[1]
+            })
+        return types
 

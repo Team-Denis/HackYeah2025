@@ -153,5 +153,47 @@ def get_reports() -> Response:
         mimetype='application/json'
     )
 
+
+# related reports to an incident endpoint
+@app.route('/api/incidents/<int:incident_id>/reports', methods=['GET'])
+def get_incident_reports(incident_id: int) -> Response:
+
+    db: Database = Database(os.getenv("DB_PATH"))  # ugly but works for now
+    report_repo: ReportRepository = ReportRepository(db)
+    reports: List[Dict[str, Any]] = report_repo.get_reports_by_incident(incident_id)
+
+    return Response(
+        json.dumps(reports, default=str),  # default=str to handle datetime serialization
+        mimetype='application/json'
+    )
+
+
+# type id to name mapping endpoint
+@app.route('/api/types', methods=['GET'])
+def get_types() -> Response:
+
+    db: Database = Database(os.getenv("DB_PATH"))  # ugly but works for now
+    general_repo: GeneralRepository = GeneralRepository(db)
+    types: List[Dict[str, Any]] = general_repo.list_types()
+    return Response(
+        json.dumps(types, default=str),  # default=str to handle datetime serialization
+        mimetype='application/json'
+    )
+
+
+# location id to name mapping endpoint
+@app.route('/api/locations', methods=['GET'])
+def get_locations() -> Response:
+
+    db: Database = Database(os.getenv("DB_PATH"))  # ugly but works for now
+    general_repo: GeneralRepository = GeneralRepository(db)
+    locations: List[Dict[str, Any]] = general_repo.list_locations()
+    return Response(
+        json.dumps(locations, default=str),  # default=str to handle datetime serialization
+        mimetype='application/json'
+    )
+
+
 if __name__ == "__main__":
     app.run(host=os.getenv("HOST"), port=os.getenv("PORT"), debug=True)
+
