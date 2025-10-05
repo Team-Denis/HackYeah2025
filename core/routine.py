@@ -6,7 +6,7 @@ from .user_elo import UserElo
 from db import Database, UserRepository
 from typing import Tuple
 from redis import Redis
-import json
+
 
 class Routine:
 
@@ -24,7 +24,7 @@ class Routine:
 
         """Main processing loop for incoming reports."""
 
-        redis_conn: Redis = Redis(host='0.0.0.0', port=6379, db=0)
+        redis_conn: Redis = Redis(host='localhost', port=6379, db=0)
         print(f"[INFO] Listening for incoming reports.")
 
         while True:

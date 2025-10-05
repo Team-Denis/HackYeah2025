@@ -266,7 +266,6 @@ class AggregatorHelper:
         type_id: int = AggregatorHelper._calculate_type(ag, reports)
 
         print(f'[INFO] Average: {avg}\n[INFO] Trust: {trust}\n[INFO] Type id: {type_id}')
-        # TODO: status and maybe more idk i dont remember
 
         ag.incident_repo.update_incident_type(incident['id'], type_id)
         ag.incident_repo.update_avg_delay(incident['id'], avg)

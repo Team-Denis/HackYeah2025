@@ -4,18 +4,11 @@ from db import Database, UserRepository, ReportType
 from core import ReportMessage
 import requests
 import os
+from dotenv import load_dotenv
 
 
-if __name__ == "__main__":
-
-    try:
-        os.remove("app.db")
-    except FileNotFoundError:
-        pass
-
-    db: Database = Database("app.db")
-    db.fill_types()
-
+def test_tb(db: Database) -> None:
+    
     ur: UserRepository = UserRepository(db)
     uid1: int = ur.add_user('Ant0in', 'antoine.berthion@ulb.be')
     uid2: int = ur.add_user('bob', 'bob@bob.bob')
@@ -27,11 +20,26 @@ if __name__ == "__main__":
     rm3: ReportMessage = ReportMessage('bob', (60, 20), '1_5',
         (60, 20), ReportType.ACCIDENT, None)
     
-    url = os.getenv("ENQUEUE_URL", "http://localhost:5000/enqueue")
+    url: str = f'http://{os.getenv("HOST")}:{os.getenv("PORT")}{os.getenv("ENQUEUE_ENDPOINT")}'
+    assert url is not None, "ENQUEUE_URL env variable not set"
 
     requests.post(url, json=rm1.to_dict())
     requests.post(url, json=rm2.to_dict())
     requests.post(url, json=rm3.to_dict())
+
+
+if __name__ == "__main__":
+
+    load_dotenv()
+
+    try: os.remove(os.getenv("DB_PATH"))
+    except FileNotFoundError: ...
+
+    db: Database = Database(os.getenv("DB_PATH"))
+    db.fill_types()
+
+    test_tb(db)
+    
     routine: Routine = Routine(db)
     routine.run()
 

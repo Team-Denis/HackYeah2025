@@ -10,13 +10,15 @@ import time
 import datetime
 from db import Database, IncidentRepository, GeneralRepository
 from google.transit import gtfs_realtime_pb2
+from typing import List, Dict, Any
 
 
 app = Flask(__name__)
 
 # Configure Redis connection
-redis_conn = Redis(host='localhost', port=6379, db=0)
-DB_PATH = "app.db"
+redis_conn = Redis(host=os.getenv("REDIS_HOST"), port=os.getenv("REDIS_PORT"), db=os.getenv("REDIS_DB"))
+TIME_THRESHOLD_MINUTES = 60  # 1 hour
+SEVERITY_THRESHOLD_MINUTES = 30  # 30 minutes
 
 
 # enqueue endpoint
@@ -38,32 +40,36 @@ def enqueue_report() -> Response:
     return {"status": "Report enqueued", "queue_size": queue_length}, 200
 
 
-@app.route('/gtfs/trip-updates')
-def trip_updates():
-    feed = gtfs_realtime_pb2.FeedMessage()
+# GTFS-Realtime Trip Updates endpoint
+@app.route('/gtfs/trip-updates', methods=['GET'])
+def trip_updates() -> None:
+
+    db: Database = Database(os.getenv("DB_PATH"))  # ugly but works for now
+
+    feed: gtfs_realtime_pb2.FeedMessage = gtfs_realtime_pb2.FeedMessage()
     feed.header.gtfs_realtime_version = '2.0'
-    feed.header.timestamp = int(time.time())
+    feed.header.timestamp = int(time.time())  # ?? might need to use UTC time
 
-    current_time = datetime.datetime.now(tz=datetime.timezone.utc)
-    cutoff_time = current_time - datetime.timedelta(minutes=60)
-    cutoff_time = cutoff_time.replace(tzinfo=datetime.timezone.utc)
+    current_time: datetime.datetime = datetime.datetime.now(tz=datetime.timezone.utc)
+    cutoff_time: datetime.datetime = (current_time - datetime.timedelta(minutes=TIME_THRESHOLD_MINUTES)
+                   ).replace(tzinfo=datetime.timezone.utc)
 
-    db = Database(DB_PATH)
-    incident_repo = IncidentRepository(db)
-    general_repo = GeneralRepository(db)
-    # Use UTC format
-    incidents = incident_repo.get_incidents_since(cutoff_time)
+    incident_repo: IncidentRepository = IncidentRepository(db)
+    general_repo: GeneralRepository = GeneralRepository(db)
+    incidents: List[Dict[str, Any]] = incident_repo.get_incidents_since(cutoff_time)
+
     print(f"[GTFS] Found {len(incidents)} active incidents.")
+
     # Process each incident and create trip updates
     for incident in incidents:
+
         # Only include active incidents with delays
         if not incident['avg_delay']:
-            incident['avg_delay'] = 60  # Default to 60 minutes if None
+            incident['avg_delay'] = TIME_THRESHOLD_MINUTES  # Default to 60 minutes if None
             
         if incident['status'] == 'active' and incident['avg_delay'] > 0:
 
             # Assuming location_name is formatted as "tripid_stopid"
-            # trip_id, stop_id = incident['location_id'].split('_')
             location_id = incident.get('location_id')
             location = general_repo.get_location_by_id(location_id)
             trip_id, stop_id = location['name'].split('_')
@@ -91,7 +97,7 @@ def trip_updates():
             stop_time_update.departure.delay = delay_seconds
             
             # Set schedule relationship based on severity
-            if incident['avg_delay'] > 30:  # More than 30 minutes delay
+            if incident['avg_delay'] > SEVERITY_THRESHOLD_MINUTES:  # More than 30 minutes delay
                 stop_time_update.schedule_relationship = stop_time_update.SKIPPED
             else:
                 stop_time_update.schedule_relationship = stop_time_update.SCHEDULED
@@ -107,4 +113,4 @@ def trip_updates():
     return response
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host=os.getenv("HOST"), port=os.getenv("PORT"), debug=True)
