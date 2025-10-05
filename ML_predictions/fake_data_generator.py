@@ -12,6 +12,7 @@ from db.repositories.incident_repository import IncidentRepository
 from db.repositories.general_repository import GeneralRepository
 
 fake = Faker()
+Faker.seed(42)
 db = Database("test.db")
 user_repo = UserRepository(db)
 report_repo = ReportRepository(db)
@@ -35,7 +36,7 @@ for name in location_names:
     if loc_id is None:
         loc_id = general_repo.add_location(name, (float(fake.latitude()), float(fake.longitude())))
     location_ids.append(loc_id)
-
+print(location_ids)
 # --- 3. Add users ---
 user_ids = []
 for _ in range(20):
@@ -58,7 +59,7 @@ for _ in range(200):
 
 # --- 5. Add incidents ---
 num_incidents = 3000
-num_zero_delay = int(num_incidents * 0.3)
+num_zero_delay = int(num_incidents * 0.5)
 num_nonzero_delay = num_incidents - num_zero_delay
 
 # First, add 30% with 0 min delay
@@ -77,10 +78,26 @@ for _ in range(num_zero_delay):
 
 for _ in range(num_nonzero_delay):
     location_id = random.choice(location_ids)
+
     type_id = random.choice(type_ids)
-    avg_delay = random.uniform(0, 30)
+
+    location_multiplier = {
+        1: 0.2,
+        2: 0.4,
+        3: 0.6,
+        4: 0.8,
+        5: 1.0,
+        6: 1.2,
+        7: 1.4,
+        8: 1.6,
+        9: 1.8,
+        10: 2.0
+    }
+    avg_delay = random.gauss(10, 5) * location_multiplier[location_id]
+
     trust_score = random.uniform(0.0, 1.0)
     status = random.choice(list(Status.list()))
+
     # Random date in the last 30 days
     created_at = fake.date_time_between(start_date='-30d', end_date='now')
     db.execute(
