@@ -8,7 +8,7 @@ from flask import Flask, request, Response
 import json
 import time
 import datetime
-from db import Database, IncidentRepository
+from db import Database, IncidentRepository, GeneralRepository
 from google.transit import gtfs_realtime_pb2
 
 
@@ -16,7 +16,7 @@ app = Flask(__name__)
 
 # Configure Redis connection
 redis_conn = Redis(host='localhost', port=6379, db=0)
-DB_PATH = os.getenv("DB_PATH", "db/app.db")
+DB_PATH = "app.db"
 
 
 # enqueue endpoint
@@ -50,16 +50,23 @@ def trip_updates():
 
     db = Database(DB_PATH)
     incident_repo = IncidentRepository(db)
+    general_repo = GeneralRepository(db)
     # Use UTC format
-    incidents = incident_repo.list_incidents()
+    incidents = incident_repo.get_incidents_since(cutoff_time)
     print(f"[GTFS] Found {len(incidents)} active incidents.")
     # Process each incident and create trip updates
     for incident in incidents:
         # Only include active incidents with delays
-        if incident['status'] == 'active' and incident['avg_delay'] and incident['avg_delay'] > 0:
+        if not incident['avg_delay']:
+            incident['avg_delay'] = 60  # Default to 60 minutes if None
+            
+        if incident['status'] == 'active' and incident['avg_delay'] > 0:
 
             # Assuming location_name is formatted as "tripid_stopid"
-            trip_id, stop_id = incident['location_name'].split('_')
+            # trip_id, stop_id = incident['location_id'].split('_')
+            location_id = incident.get('location_id')
+            location = general_repo.get_location_by_id(location_id)
+            trip_id, stop_id = location['name'].split('_')
 
             print(f"Processing incident {incident['id']} for trip {trip_id} at stop {stop_id}")
 

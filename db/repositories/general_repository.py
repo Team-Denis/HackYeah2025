@@ -29,6 +29,23 @@ class GeneralRepository:
         )
         row: Optional[Tuple[int]] = cur.fetchone()
         return row[0] if row else None
+    
+    def get_location_by_id(self, location_id: int) -> Optional[dict]:
+
+        """Get location details by its ID. Returns None if not found."""
+        
+        cur: sqlite3.Cursor = self.db.execute(
+            query="SELECT id, name, coords_lat, coords_lon FROM locations WHERE id = ?",
+            params=(location_id,),
+        )
+        row: Optional[Tuple[int, str, float, float]] = cur.fetchone()
+        if row:
+            return {
+                "id": row[0],
+                "name": row[1],
+                "coords": (row[2], row[3])
+            }
+        return None
 
     def add_location(self, location_name: str, pos: Tuple[float, float]) -> int:
 
