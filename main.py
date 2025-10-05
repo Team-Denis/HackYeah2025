@@ -20,11 +20,11 @@ if __name__ == "__main__":
     uid1: int = ur.add_user('Ant0in', 'antoine.berthion@ulb.be')
     uid2: int = ur.add_user('bob', 'bob@bob.bob')
 
-    rm1: ReportMessage = ReportMessage('Ant0in', (50, 20), 'Krakow',
+    rm1: ReportMessage = ReportMessage('Ant0in', (50, 20), '1_3',
         (50.06143, 19.93658), ReportType.DELAY, 10)
-    rm2: ReportMessage = ReportMessage('bob', (50, 20), 'Krakow',
+    rm2: ReportMessage = ReportMessage('bob', (50, 20), '1_3',
         (50.06143, 19.93658), ReportType.DELAY, 20)
-    rm3: ReportMessage = ReportMessage('bob', (60, 20), 'Varsovia',
+    rm3: ReportMessage = ReportMessage('bob', (60, 20), '1_5',
         (60, 20), ReportType.ACCIDENT, None)
     
     url = os.getenv("ENQUEUE_URL", "http://localhost:5000/enqueue")

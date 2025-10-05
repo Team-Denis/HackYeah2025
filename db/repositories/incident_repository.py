@@ -59,16 +59,15 @@ class IncidentRepository:
                 "last_updated": row[7]
             }
         return None
-    
-    def get_incident_since(self, since: str) -> List[Dict[str, Any]]:
-        """Retrieve incidents updated since a given timestamp."""
+
+    def get_all_incidents(self) -> List[Dict[str, Any]]:
+        """Retrieve all incidents."""
         cur: sqlite3.Cursor = self.db.execute(
             query="""
                 SELECT id, location_id, type_id, avg_delay, trust_score, status, created_at, last_updated
-                FROM incidents WHERE last_updated >= ?
+                FROM incidents
                 ORDER BY last_updated DESC
-            """,
-            params=(since,),
+            """
         )
         rows = cur.fetchall()
         return [
