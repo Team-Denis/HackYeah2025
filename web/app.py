@@ -3,6 +3,11 @@ from google.transit import gtfs_realtime_pb2
 import datetime
 import time
 import os
+import sys
+
+SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
+sys.path.append(os.path.dirname(SCRIPT_DIR))
+
 from db import IncidentRepository, ReportRepository, UserRepository, GeneralRepository, Database
 
 from flask import Flask, request, Response
@@ -22,6 +27,7 @@ def enqueue_report():
         return {"error": "Invalid payload"}, 400
     
     redis_conn.publish('report_queue', str(data))
+    print(redis_conn.llen('report_queue'))
     return {"status": "Report enqueued"}, 200
 
 

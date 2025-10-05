@@ -3,9 +3,10 @@ from .aggregator import Aggregator
 from .decider import Decider
 from .report_message import ReportMessage
 from .user_elo import UserElo
-from db import Database, UserRepository
+from db import Database, UserRepository, ReportType
 from typing import Tuple
 from redis import Redis
+import json
 
 class Routine:
 
@@ -30,18 +31,42 @@ class Routine:
         print("[INFO] Listening for incoming reports...")
 
         for message in pubsub.listen():
+            print(f"[DEBUG] Received message: {message}")
+            if message['type'] != 'message':
+                continue
+
+            data = json.loads(message['data'].replace(b"'", b'"'))
+            report_type = None
+            match data.get('report_type'):
+                case 'DELAY':
+                    report_type = ReportType.DELAY
+                case 'MAINTENANCE':
+                    report_type = ReportType.MAINTENANCE
+                case 'ACCIDENT':
+                    report_type = ReportType.ACCIDENT
+                case 'SOLVED':
+                    report_type = ReportType.SOLVED
+                case 'OTHER':
+                    report_type = ReportType.OTHER
+                case _:
+                    print(f"[ERROR] Unknown report type: {data.get('report_type')}")
+
             report_message = ReportMessage(
-                user_name=message['data'].get('user_name'),
+                user_name=data.get('user_name'),
                 user_location=(
-                    message['data'].get('user_latitude'),
-                    message['data'].get('user_longitude')
+                    data.get('user_location').get('latitude'),
+                    data.get('user_location').get('longitude')
                 ),
-                location_name=message['data'].get('location_name'),
-                location_id=message['data'].get('location_id'),
-                type_id=message['data'].get('type_id'),
-                delay_minutes=message['data'].get('delay_minutes')
+                location_name=data.get('location_name'),
+                location_pos=(
+                    data.get('location_pos').get('latitude'),
+                    data.get('location_pos').get('longitude')
+                ),
+                report_type=ReportType(report_type),
+                delay_minutes=data.get('delay_minutes')
             )
 
+            print(report_message)
             self._process_report(report_message)
 
 
