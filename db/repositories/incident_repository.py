@@ -31,7 +31,6 @@ class IncidentRepository:
                 VALUES (?, ?, ?, ?, ?)
             """,
             params=(location_id, type_id, avg_delay, trust_score, status),
-            commit=True
         )
         return cur.lastrowid
 
@@ -45,7 +44,6 @@ class IncidentRepository:
                 FROM incidents WHERE id = ?
             """,
             params=(incident_id,),
-            commit=False
         )
 
         row = cur.fetchone()
@@ -71,7 +69,6 @@ class IncidentRepository:
                 ORDER BY last_updated DESC
             """,
             params=(since,),
-            commit=False
         )
         rows = cur.fetchall()
         return [
@@ -93,7 +90,6 @@ class IncidentRepository:
         self.db.execute(
             query="DELETE FROM incidents WHERE id = ?",
             params=(incident_id,),
-            commit=True
         )
 
     def list_incidents(
@@ -127,7 +123,7 @@ class IncidentRepository:
 
         query += " ORDER BY last_updated DESC"
 
-        cur = self.db.execute(query=query, params=params, commit=False)
+        cur = self.db.execute(query=query, params=params,)
         rows = cur.fetchall()
         return [
             {
@@ -155,7 +151,6 @@ class IncidentRepository:
                 ORDER BY created_at DESC
             """,
             params=(incident_id,),
-            commit=False
         )
         rows = cur.fetchall()
         return [
@@ -181,7 +176,6 @@ class IncidentRepository:
                 LIMIT 1
             """,
             params=(lid,),
-            commit=False
         )
         row = cur.fetchone()
         if row:
@@ -211,7 +205,6 @@ class IncidentRepository:
                 WHERE id = ?
             """,
             params=(new_score, incident_id),
-            commit=True
         )
 
     def update_avg_delay(self, incident_id: int, new_delay: float) -> None:
@@ -229,7 +222,6 @@ class IncidentRepository:
                 WHERE id = ?
             """,
             params=(new_delay, incident_id),
-            commit=True
         )
 
     def update_last_updated(self, incident_id: int) -> None:
@@ -243,7 +235,6 @@ class IncidentRepository:
                 WHERE id = ?
             """,
             params=(incident_id,),
-            commit=True
         )
 
     def update_status(self, incident_id: int, new_status: Status) -> None:
@@ -260,7 +251,6 @@ class IncidentRepository:
                 WHERE id = ?
             """,
             params=(new_status.value, incident_id),
-            commit=True
         )
     
     def update_status_for_old_incidents(self):
@@ -271,7 +261,6 @@ class IncidentRepository:
                SET status = 'RESOLVED'
                WHERE last_updated < created_at + INTERVAL avg_delay + 5 MINUTE
            """,
-           commit=True
        )
 
     def update_incident_type(self, incident_id: int, nit: int) -> None:
@@ -285,6 +274,5 @@ class IncidentRepository:
                 WHERE id = ?
             """,
             params=(nit, incident_id),
-            commit=True
         )
 

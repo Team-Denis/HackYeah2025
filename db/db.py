@@ -71,11 +71,11 @@ class Table(Enum):
 
 class ReportType(Enum):
 
-    DELAY: str = "Delay"
-    MAINTENANCE: str = "Maintenance"
-    ACCIDENT: str = "Accident"
-    SOLVED: str = "Solved"
-    OTHER: str = "Other"
+    DELAY: str = "DELAY"
+    MAINTENANCE: str = "MAINTENANCE"
+    ACCIDENT: str = "ACCIDENT"
+    SOLVED: str = "SOLVED"
+    OTHER: str = "OTHER"
 
     @staticmethod
     def list() -> List[str]:
@@ -110,7 +110,8 @@ class Database:
 
         self.conn: sqlite3.Connection = sqlite3.connect(fp)
         self.cursor: sqlite3.Cursor = self.conn.cursor()
-        self.cursor.execute("PRAGMA foreign_keys = ON;")
+        self.execute("PRAGMA foreign_keys = ON;")
+        self.execute("PRAGMA journal_mode = WAL;")
 
         self._init_tables()
         self._create_indexes()
@@ -120,16 +121,14 @@ class Database:
         """Initialize all tables in the database."""
 
         for t in Table.list():
-            self.execute(query=t, commit=False)
-        self.conn.commit()
+            self.execute(query=t)
 
     def _create_indexes(self) -> None:
 
         """Create necessary indexes for performance optimization."""
 
         for idx in self._INDEXES:
-            self.execute(idx, commit=False)
-        self.conn.commit()
+            self.execute(idx)
 
     def fill_types(self) -> None:
 
@@ -139,29 +138,24 @@ class Database:
             try:
                 self.execute(
                     query="INSERT INTO report_types (name) VALUES (?)",
-                    params=(t,),
-                    commit=False
+                    params=(t,)
                 )
             except sqlite3.IntegrityError as e:
                 print(f'Type "{t}" already exists. Skipping... ({e}).')
-        self.conn.commit()
 
     def close(self) -> None:
         """Close the database connection."""
         self.conn.close()
 
-    def execute(self, query: str, params: Tuple = (), commit: bool = True) -> sqlite3.Cursor:
+    def execute(self, query: str, params: Tuple = ()) -> sqlite3.Cursor:
 
         """
         Execute a query with optional parameters. Returns the cursor. \n
-        ## Commit changes to the database manually if commit is set
-        ## to False! \n
         Raises `sqlite3.Error` exceptions on error.
         """
 
-        cur = self.conn.cursor()
+        cur: sqlite3.Cursor = self.conn.cursor()
         cur.execute(query, params)
-        if commit:
-            self.conn.commit()
+        self.conn.commit()
         return cur
 

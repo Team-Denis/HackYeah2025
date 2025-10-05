@@ -1,7 +1,8 @@
 
 from dataclasses import dataclass
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Any
 from db import ReportType
+import json
 
 
 @dataclass
@@ -34,5 +35,23 @@ class ReportMessage:
     
     @classmethod
     def from_json(cls, raw: str) -> 'ReportMessage':
-        ...  # TODO: Implement JSON parsing logic
+
+        """Creates a ReportMessage instance from a JSON string."""
+        
+        data: Any = json.loads(raw)
+        
+        return cls(
+            user_name=data.get('user_name'),
+            user_location=(
+                data.get('user_location').get('latitude'),
+                data.get('user_location').get('longitude')
+            ),
+            location_name=data.get('location_name'),
+            location_pos=(
+                data.get('location_pos').get('latitude'),
+                data.get('location_pos').get('longitude')
+            ),
+            report_type=ReportType(data.get('report_type')),
+            delay_minutes=data.get('delay_minutes')
+        )
 

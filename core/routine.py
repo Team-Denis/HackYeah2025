@@ -3,7 +3,7 @@ from .aggregator import Aggregator
 from .decider import Decider
 from .report_message import ReportMessage
 from .user_elo import UserElo
-from db import Database, UserRepository, ReportType
+from db import Database, UserRepository
 from typing import Tuple
 from redis import Redis
 import json
@@ -24,52 +24,13 @@ class Routine:
 
         """Main processing loop for incoming reports."""
 
-        redis_conn = Redis(host='localhost', port=6379, db=0)
-        pubsub = redis_conn.pubsub()
-        pubsub.subscribe("report_queue")
+        redis_conn: Redis = Redis(host='0.0.0.0', port=6379, db=0)
+        print(f"[INFO] Listening for incoming reports.")
 
-        print("[INFO] Listening for incoming reports...")
-
-        for message in pubsub.listen():
-            print(f"[DEBUG] Received message: {message}")
-            if message['type'] != 'message':
-                continue
-
-            data = json.loads(message['data'].replace(b"'", b'"'))
-            report_type = None
-            match data.get('report_type'):
-                case 'DELAY':
-                    report_type = ReportType.DELAY
-                case 'MAINTENANCE':
-                    report_type = ReportType.MAINTENANCE
-                case 'ACCIDENT':
-                    report_type = ReportType.ACCIDENT
-                case 'SOLVED':
-                    report_type = ReportType.SOLVED
-                case 'OTHER':
-                    report_type = ReportType.OTHER
-                case _:
-                    print(f"[ERROR] Unknown report type: {data.get('report_type')}")
-
-            report_message = ReportMessage(
-                user_name=data.get('user_name'),
-                user_location=(
-                    data.get('user_location').get('latitude'),
-                    data.get('user_location').get('longitude')
-                ),
-                location_name=data.get('location_name'),
-                location_pos=(
-                    data.get('location_pos').get('latitude'),
-                    data.get('location_pos').get('longitude')
-                ),
-                report_type=ReportType(report_type),
-                delay_minutes=data.get('delay_minutes')
-            )
-
-            print(report_message)
-            self._process_report(report_message)
-
-
+        while True:
+            _, raw_message = redis_conn.blpop('report_queue')
+            report: ReportMessage = ReportMessage.from_json(raw_message)
+            self._process_report(report)
 
     def _process_report(self, report: ReportMessage) -> None:
 
@@ -95,8 +56,5 @@ class Routine:
         # Step 2: Aggregate the report into the system
         self.aggregator.routine(report)
         print(f"[INFO] Report from {report.user_name} processed.")
-
-        # Step 3: Send notifications to GTFS system
-        # TODO: Implement GTFS notification logic here
 
        

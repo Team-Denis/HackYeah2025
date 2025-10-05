@@ -29,13 +29,11 @@ class ReportRepository:
                 VALUES (?, ?, ?, ?)
             """,
             params=(user_id, location_id, type_id, delay_minutes),
-            commit=True
         )
 
         user: Optional[Tuple[int]] = self.db.execute(
             query="SELECT reports_made FROM users WHERE id = ?",
             params=(user_id,),
-            commit=False
         ).fetchone()
 
         if user:
@@ -43,7 +41,6 @@ class ReportRepository:
             self.db.execute(
                 query="UPDATE users SET reports_made = ? WHERE id = ?",
                 params=(new_count, user_id),
-                commit=True
             )
 
         return cur.lastrowid
@@ -58,7 +55,6 @@ class ReportRepository:
                 FROM reports WHERE id = ?
             """,
             params=(report_id,),
-            commit=False
         )
 
         row = cur.fetchone()
@@ -131,7 +127,6 @@ class ReportRepository:
                 LIMIT ?
             """,
             params=(limit,),
-            commit=False
         )
 
         rows: Any = cur.fetchall()
@@ -155,7 +150,6 @@ class ReportRepository:
         self.db.execute(
             query="UPDATE reports SET incident_id = ? WHERE id = ?",
             params=(incident_id, report_id),
-            commit=True
         )
 
     def get_reports_by_incident(self, incident_id: int) -> List[Dict[str, Any]]:
@@ -168,7 +162,6 @@ class ReportRepository:
                 ORDER BY created_at DESC
             """,
             params=(incident_id,),
-            commit=False
         )
         rows = cur.fetchall()
         

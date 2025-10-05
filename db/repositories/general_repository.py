@@ -15,7 +15,6 @@ class GeneralRepository:
         cur: sqlite3.Cursor = self.db.execute(
             query="SELECT id FROM report_types WHERE name = ?",
             params=(report_type.value,),
-            commit=False
         )
         row: Optional[Tuple[int]] = cur.fetchone()
         return row[0] if row else None
@@ -27,7 +26,6 @@ class GeneralRepository:
         cur: sqlite3.Cursor = self.db.execute(
             query="SELECT id FROM locations WHERE name = ?",
             params=(location_name,),
-            commit=False
         )
         row: Optional[Tuple[int]] = cur.fetchone()
         return row[0] if row else None
@@ -39,7 +37,6 @@ class GeneralRepository:
         cur: sqlite3.Cursor = self.db.execute(
             query="INSERT INTO locations (name, coords_lat, coords_lon) VALUES (?, ?, ?)",
             params=(location_name, pos[0], pos[1]),
-            commit=True
         )
         return cur.lastrowid
 
