@@ -13,7 +13,7 @@ services:
       - REDIS_HOST=redis
 
   worker:
-    build: ./backend
+    build: ./web
     container_name: routine-worker
     restart: unless-stopped
     depends_on:
