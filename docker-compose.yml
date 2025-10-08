@@ -2,18 +2,22 @@ version: "3.9"
 
 services:
   backend:
-    build: ./web
+    build:
+      context: .
+      dockerfile: ./web/Dockerfile
     container_name: flask-backend
     restart: unless-stopped
     depends_on:
       - redis
-    ports:
-      - "5000:5000"
     environment:
       - REDIS_HOST=redis
+    networks:
+      - webnet
 
   worker:
-    build: ./web
+    build:
+      context: .
+      dockerfile: ./web/Dockerfile
     container_name: routine-worker
     restart: unless-stopped
     depends_on:
@@ -21,6 +25,8 @@ services:
     command: ["python", "main.py"]
     environment:
       - REDIS_HOST=redis
+    networks:
+      - webnet
 
   otp:
     image: openjdk:17-jdk-slim
@@ -28,9 +34,9 @@ services:
     working_dir: /otp
     volumes:
       - ./otp:/otp
-    command: ["java", "-jar", "otp-server.jar"]
-    ports:
-      - "8080:8080"
+    command: >
+      java -Xmx2G -jar /otp/otp-server.jar --load .
+    
     restart: unless-stopped
 
   redis:
@@ -39,6 +45,8 @@ services:
     restart: unless-stopped
     ports:
       - "6379:6379"
+    networks:
+      - webnet
 
   cloudflared:
     image: cloudflare/cloudflared:latest
@@ -46,3 +54,12 @@ services:
     environment:
       - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
     restart: unless-stopped
+    networks:
+      - webnet
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+
+networks:
+  webnet:
+    driver: bridge

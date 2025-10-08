@@ -6,30 +6,32 @@ This API provides a real-time incident reporting system with GTFS-Realtime integ
 
 ## Configuration
 
-1. Copy `.env.example` to `.env` and adjust variables:
+
+### 1. Cloudflare
+Create a Cloudflare tunnel with two routes towards `http://otp:8080` and `http://flask-backend:5000`
+
+Then, copy your token in the `.env` file
+
+### 2. OTP
+Make sure `java 17` or later is installed on your system.
+
+Download the `.jar` file from opentripplanner, your GTFS files and your PBF files and build the graph :
 
 ```
-HOST=0.0.0.0
-PORT=5000
-DB_PATH=db/app.db
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_DB=0
-ENQUEUE_URL=http://localhost:5000/enqueue
+java -Xmx2G -jar otp.jar --build --save .
 ```
 
-2. Install dependencies:
+### 3. Docker
+
+Make sure `docker` and `docker compose` are installed on your machine.
+
+You can now run the containers by using :
 
 ```
-pip install -r requirements.txt
+docker-compose up -d --build
 ```
 
-3. Run the Flask server:
 
-```
-python web/app.py
-```
-4. Install and Launch `Redis` Service
 ---
 
 ## Endpoints
