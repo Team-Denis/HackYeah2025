@@ -5,7 +5,12 @@ services:
     build:
       context: .
       dockerfile: ./web/Dockerfile
+    build:
+      context: .
+      dockerfile: ./web/Dockerfile
     container_name: flask-backend
+    env_file:
+      - ./.env
     restart: unless-stopped
     depends_on:
       - redis
@@ -18,7 +23,12 @@ services:
     build:
       context: .
       dockerfile: ./web/Dockerfile
+    build:
+      context: .
+      dockerfile: ./web/Dockerfile
     container_name: routine-worker
+    env_file:
+      - ./.env
     restart: unless-stopped
     depends_on:
       - redis

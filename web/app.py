@@ -19,7 +19,7 @@ load_dotenv()
 
 
 # Configure Redis connection
-redis_conn = Redis(host=os.getenv("REDIS_HOST", "redis"), port=os.getenv("REDIS_PORT"), db=os.getenv("REDIS_DB"))
+redis_conn = Redis(host=os.getenv("REDIS_HOST", "redis"), port=os.getenv("REDIS_PORT", 6379), db=os.getenv("REDIS_DB", 0))
 TIME_THRESHOLD_MINUTES = 60  # 1 hour
 SEVERITY_THRESHOLD_MINUTES = 30  # 30 minutes
 
